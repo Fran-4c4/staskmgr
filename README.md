@@ -1,20 +1,30 @@
-Simple Task Manager (STMGR)
-========================
+# Simple Task Manager (STMGR)
 
-This is a simple task manager to start process on AWS/Docker or other places.
-The app has built some classes to manage the run on AWS but you can implement more and use dinamically.
-You only need to create a class to handle the task that you need to start and register in a DDBB.
-I´m going to compare with Celery(because is one of the most used) in order to explain the main diferences so you can choose right.
-What is the main diference with Celery for example? Celery is based on a Broker (like Redis/RabbitMQ) for task queuing and scheduling and need to register the task in celery using hardcode. STMGR don´t depends on hardcode the class inside. The handlers are loaded dinamically so the modules can be changed at any time and loaded from everywhere(not at all in this version because the classes must be in an accesible path).
-**Broker**
-STMGR relies in database(postgres in this case). Celery relies heavily on a broker (like Redis/RabbitMQ) for task queuing and scheduling. Your task manager may or may not need this depending on your design. STMGR coud be extend this functionality but due to my own needs i use this way.
-**Flexibility**
-STMGR is more flexible in that it allows for configuration changes through a database, meaning you can modify task behavior without deploying new code. Celery requires that task definitions be present in the codebase (though you can modify them by redeploying).
-**Distribution**
-STMGR is designed with distribution in mind so the exaple tasks are designed to be executed in AWS ECS or Docker. You can create wathever handler you need including his own configuration in diferent database.
-**Multiple STMG**
-You can create multiple STMGR. Simply configure them in database with a key-name. When you start the task manager you can tell the key.
----------------
+This is a simple task manager to start processes on AWS/Docker or other platforms. The app includes classes to manage tasks on AWS, but you can implement additional handlers dynamically.
+
+You only need to create a class to handle the task that you want to start and register it in a database (DDBB). Below, I’ll compare STMGR with Celery (since it’s widely used) to explain the key differences and help you make an informed choice.
+
+## Key Differences from Celery
+
+### Task Registration
+Celery is based on a broker (like Redis/RabbitMQ) for task queuing and scheduling, requiring you to register tasks with hardcoded definitions. In contrast, STMGR doesn't rely on hardcoded classes; the handlers are dynamically loaded, allowing for changes to modules at any time, as long as they are in an accessible path.
+
+### Broker
+- **STMGR**: Relies on a database (Postgres in this case). This design can be extended, but I’ve chosen this for my specific needs.
+- **Celery**: Relies heavily on a broker like Redis or RabbitMQ.
+
+### Flexibility
+- **STMGR**: More flexible, allowing for configuration changes through a database without deploying new code.
+- **Celery**: Task definitions must be present in the codebase (modifying them requires redeployment).
+
+### Distribution
+- **STMGR**: Designed with distribution in mind; example tasks can be executed in AWS ECS or Docker. You can create any handler you need with custom configurations stored in a database.
+- **Celery**: Focused on task execution using brokers.
+
+### Multiple STMGR Instances
+- You can create multiple STMGR instances by configuring them in the database with a key-name. When starting the task manager, specify the key.
+
+---
 
 
 ## Create environment
