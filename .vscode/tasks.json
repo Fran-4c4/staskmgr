@@ -1,0 +1,28 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Build Package",
+            "type": "shell",
+            "command": "${workspaceFolder}/.venv/Scripts/python",
+            "args": [
+                "${workspaceFolder}/scripts/build.py"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": [],
+            "detail": "Automate package build and clean process"
+        },
+        {
+            "label": "Print Workspace Folder",
+            "type": "shell",
+            "command": "echo",
+            "args": [
+                "${workspaceFolder}"
+            ],
+            "problemMatcher": []
+        }
+    ]
+}

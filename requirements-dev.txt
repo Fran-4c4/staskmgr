@@ -1,0 +1,7 @@
+#REQUIREMENTS FOR DEV.
+
+nose
+sphinx
+wheel
+boto3
+

@@ -1,0 +1,36 @@
+{	"environment":"DEV"
+	,"manager_name":"MAIN_MGR"
+	,"config_from":"DDBB"
+	,"DDBB_CONFIG": {
+		"password": "",
+		"port": 5432,
+		"host": "",
+		"user": "",
+		"db": ""
+	},
+	
+	"logging": {
+		"DEFAULT_LOG_LEVEL": 10,
+		"DEFAULT_LOG_FORMATTER": "%(asctime)s BACKEND OM %(levelname)s %(name)s.%(funcName)s.%(lineno)d - %(message)s",
+		"LOGFILE": "log_tmgr.log"
+	}
+	,"DB_LOG":{
+		"log_table":"log"
+	}
+	,"task_handlers":{
+		"TestTaskHandler":{
+			"name": "Test task",
+            "module": "TestTaskHandler",
+            "class": "TestTaskHandler",
+            "path": "C:/task_handlers"
+		}
+		,"RESOURCE_LOCATE_PROCESS_HANDLER": {
+			"name": "Test task",
+            "module": "TestTaskHandler",
+            "class": "TestTaskHandler",
+            "path": "C:/task_handlers"
+		}
+
+	}
+
+}
