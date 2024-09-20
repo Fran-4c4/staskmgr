@@ -219,7 +219,7 @@ class TMgr():
                     tl=TaskLoader(task_config)
                     #-----------START TASK  --------------------
                     
-                    # task_ret=tl.run_task()
+                    task_ret=tl.run_task()
                     
                     #-----------END TASK    --------------------
                 except Exception as ex:
