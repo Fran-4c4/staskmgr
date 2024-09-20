@@ -16,6 +16,7 @@ class ECSTaskHandler(TaskHandlerInterface):
 
     def __init__(self):
         self.log = logging.getLogger(__name__)
+        logging.getLogger('botocore').setLevel(logging.INFO)
         self.client = None
         self.task_data=None
         self.launchType = None
@@ -116,7 +117,7 @@ class ECSTaskHandler(TaskHandlerInterface):
                 except Exception as e:
                     autoscaling_client = boto3.client('autoscaling', region_name=self.aws_region)
                     if "No Container Instances were found in your cluster" in str(e):
-                        print("No Container Instances were found in your cluster, increasing ASG(Auto scaling group)...")
+                        self.log.info("No Container Instances were found in your cluster, increasing ASG(Auto scaling group)...")
                         autoscaling_client.set_desired_capacity(
                             AutoScalingGroupName=self.auto_scaling_group_name,
                             DesiredCapacity=self.auto_scaling_group_DesiredCapacity,
@@ -131,7 +132,7 @@ class ECSTaskHandler(TaskHandlerInterface):
                 response = run_task()
                 if response is None:
                     attempts += 1
-                    print(f"Increasing autoscaling group, waiting... Try {attempts}/{max_attempts}")
+                    self.log.info(f"Increasing autoscaling group, waiting... Try {attempts}/{max_attempts}")
                     time.sleep(self.auto_scaling_group_wait_time)  # Esperar un tiempo antes de volver a intentar
         
 
