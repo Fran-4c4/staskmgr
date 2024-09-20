@@ -16,6 +16,17 @@
             "detail": "Automate package build and clean process"
         },
         {
+            "label": "Upload Package",
+            "type": "shell",
+            "command": "twine",
+            "args": [
+                "upload","dist/*","--verbose"
+
+            ],
+            "problemMatcher": [],
+            "detail": "Upload package to pypi"
+        },        
+        {
             "label": "Print Workspace Folder",
             "type": "shell",
             "command": "echo",
