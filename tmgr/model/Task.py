@@ -1,16 +1,17 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-
+from typing import Type
+from sqlalchemy.ext.declarative import DeclarativeMeta
 from sqlalchemy.sql import func
 from sqlalchemy import Column, String, Integer,  TIMESTAMP, Text, JSON, SmallInteger
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
 
 
-from .BaseManager import BaseManager
-base_orm=BaseManager.get_base()
+from .base_manager import BaseManager
+BASE_ORM:Type[DeclarativeMeta]=BaseManager.get_base()
 
-class Task(base_orm):
+class Task(BASE_ORM):
     """ Task ORM model
 
     Args:

@@ -9,10 +9,10 @@ from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from sqlalchemy import and_
 
 
-from .DBBase import DBBase
-from .model.Task import Task
-from .enums.TaskStatusEnum import TaskStatusEnum
-from .model.TaskDep import TaskDep
+from .db_base import DBBase
+from .model.task import Task
+from .enums.task_status_enum import TaskStatusEnum
+from .model.task_dep import TaskDep
 
 class TaskDB(DBBase):
 

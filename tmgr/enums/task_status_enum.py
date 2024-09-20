@@ -1,4 +1,4 @@
-from .EnumBase import EnumBase
+from .enum_base import EnumBase
 
 class TaskStatusEnum(str,EnumBase):
     """Enumeration for task

@@ -5,16 +5,18 @@ import logging
 import logging.handlers
 import time
 import argparse
+from typing import Dict
 
-from .GlobalConfig import gconfig
-from .LogHelper import LogHelper
-from .dbmgr import initDatabase
-from .ConfigurationHelper import ConfigurationHelper
-from .DBBase import DBBase
-from .TaskDB import TaskDB
-from .enums.TaskStatusEnum import TaskStatusEnum
-from .TaskLoader import TaskLoader
-from .EnvLoader import EnvLoader
+from .periodic_task import PeriodicTask
+
+from .global_config import gconfig
+from .db_mgr import DBMgr
+from .configuration_helper import ConfigurationHelper
+from .db_base import DBBase
+from .task_db import TaskDB
+from .enums.task_status_enum import TaskStatusEnum
+from .task_loader import TaskLoader
+from .env_loader import EnvLoader
 
 class TMgr():
     """class to manage task from DDBB
@@ -25,6 +27,8 @@ class TMgr():
     configuration_file=None #"appconfig.json"
     
     task_definitions={}
+    
+    th_check_configuration=None
     
     def __init__(self,config_like:any,taskmgr_name="staskmgr"):
         """
@@ -41,37 +45,67 @@ class TMgr():
             monitor_wait_time_seconds (int): Wait time before close task manager. 
             max_wait_count (int): max wait time. This is useful when you create a manager in a docker and you want to wait to reutilize the hardware. Task manager will wait this time by the number of counts.
         """
-        self.configuration_file=config_like  
-        EnvLoader(app_name=taskmgr_name) #LOAD ENVIRONMENT VARS
-        self.init_configuration(config_like=config_like)
         self.log = logging.getLogger(__name__)
+        self.configuration_file=config_like  
         self.max_wait_count=10
         self.wait_between_tasks_seconds=1
         self.monitor_wait_time_seconds=-1
         
+        EnvLoader(app_name=taskmgr_name) #LOAD ENVIRONMENT VARS
+        self.init_configuration(config_like=config_like)
+        
+
+        
     @property
     def app_config(self):
+        """get global configuration
+
+        Returns:
+            dict: global configuration
+        """        
         return gconfig.app_config
 
     @app_config.setter
     def app_config(self, value):
+        """set global configuration
+
+        Args:
+            value (dict): global configuration
+        """        
         gconfig.app_config = value
 
     def init_configuration(self,config_like:any):
-        current_working_directory = os.getcwd()
-        print(f"current_working_directory: {current_working_directory}") 
+        """init configuration
+
+        Args:
+            config_like (str|dict): a dict with configuration or a file with configuration
+        """        
         cfgh=ConfigurationHelper() 
         self.app_config= cfgh.load_config(config_like= config_like)  
-         
-        self.init_logging()
         #INIT DATABASE
         db_config=self.app_config["DDBB_CONFIG"]
-        initDatabase(db_config)
-        self.app_config["mgr_config"]=TaskDB().get_task_mgr_configuration(self.app_config["manager_name"])
+        DBMgr().init_database(db_config)
+
+        self.config_tmgr_from_ddbb() 
+        self.log.info("Initial DDBB configuration loaded.")       
         self.config_task_definitions()
         
-    def config(self,cfg):
-        config_from=cfg.get("config_from",)
+        if self.app_config.get("check_configuration_interval",-1)>0:
+            self.th_check_configuration=PeriodicTask(interval=10, task_function=self.config_tmgr_from_ddbb)
+            self.th_check_configuration.start()
+        
+    def config_tmgr_from_ddbb(self):
+        """config manager
+
+        Args:
+            cfg (dict): dict with configuration
+        """        
+        cfg:Dict=TaskDB().get_task_mgr_configuration(self.app_config["manager_name"]).config
+        self.app_config["mgr_config"]=cfg
+        self.max_wait_count=cfg.get("max_wait_count",10) 
+        self.wait_between_tasks_seconds=cfg.get("wait_between_tasks_seconds",1) 
+        self.monitor_wait_time_seconds=cfg.get("monitor_wait_time_seconds",-1) 
+        self.log.debug("Configuration loaded...................................")
         
         
     def config_task_definitions(self): 
@@ -79,13 +113,12 @@ class TMgr():
         """           
         self.task_definitions=self.app_config.get("task_handlers",{})
 
-        
-    def init_logging(self):
-        loggingSection=self.app_config.get('taskmgr',{}).get("loggingSection")
-        if loggingSection:
-            rootPath=os.path.dirname(__file__)
-            LogHelper.initLogging(rootPath,loggingSection)
-        
+    def stop_tasks(self):
+        """stop internal threads
+        """        
+        self.log.info("Stop threads")
+        if self.th_check_configuration:
+            self.th_check_configuration.stop()
           
     def get_task(self, id_task) :
         """return task object
@@ -187,12 +220,11 @@ class TMgr():
                     task_ret=tl.run_task()
                     
                     #-----------END TASK    --------------------
-                except Exception as oEx:
+                except Exception as ex:
                     # here we manage errors inside class, not logical or functional errors that are controlled in task_ret var.
-                    msg=str(oEx)
+                    msg=str(ex)
                     proc_db.update_status(id=id_task,new_status=TaskStatusEnum.ERROR,output=msg,progress=0) 
-                
-                # task_ret=self.task_panel_issue_detection_flow(task_obj=task_obj)
+
                 if task_ret.get("status","").upper()=="ERROR":
                     msg=task_ret['message']
                     proc_db.update_status(id=id_task,new_status=TaskStatusEnum.ERROR,output=msg) 
@@ -207,8 +239,8 @@ class TMgr():
                 # No se ha podido actualizar, bien porque se ha borrado, porque ya se ha ejecutado, etc. 
                 log.warning(f"Task {id_task} not launched. Maybe was deleted or executed in other process.")  
 
-        except Exception as oEx:
-            self.log.error(f"Task {id_task} raised error {str(oEx)}")
+        except Exception as ex:
+            self.log.error(f"Task {id_task} raised error {str(ex)}")
 
 
     
@@ -225,7 +257,7 @@ class TMgr():
                     max_wait_counter=0                     
                 else:                    
                     if self.wait_between_tasks_seconds >0:    
-                        print(f"No pending tasks, waiting... {self.wait_between_tasks_seconds} seconds")             
+                        self.log.debug(f"No pending tasks. Try:{max_wait_counter}  waiting... {self.wait_between_tasks_seconds} seconds")             
                         time.sleep(self.wait_between_tasks_seconds) 
                     max_wait_counter+=1
                     if self.monitor_wait_time_seconds>0 and max_wait_counter==self.max_wait_count:
@@ -233,7 +265,7 @@ class TMgr():
                 if  self.monitor_wait_time_seconds>0:   
                     time.sleep(self.monitor_wait_time_seconds)  # Espera antes de volver a verificar
         finally:
-            pass
+            self.stop_tasks()
     
     
 

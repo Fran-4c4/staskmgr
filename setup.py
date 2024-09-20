@@ -14,8 +14,9 @@ here = os.path.abspath(os.path.dirname(__file__))
 with open(os.path.join(here, 'README.md')) as f:
     readme = f.read()
 
-with open(os.path.join(here, 'LICENSE')) as f:
-    license = f.read()
+license='Apache License 2.0'
+# with open(os.path.join(here, 'LICENSE')) as f:
+#     license = f.read()
     
 # -*- Distribution Meta -*-
 
@@ -46,9 +47,10 @@ def parse_dist_meta():
     
 def long_description():
     try:
-        return codecs.open('README.rst', 'r', 'utf-8').read()
+        # return codecs.open('README.md', 'r', 'utf-8').read()
+        return open('README.md').read()
     except OSError:
-        return 'Long description error: Missing README.rst file'
+        return 'Long description error: Missing README.md file'
 # -*- Requirements -*-
 
 def _strip_comments(l):
@@ -81,25 +83,69 @@ def reqs(*f):
     
 def install_requires():
     """Get list of requirements required for installation."""
-    return reqs('defaults.txt')
+    resp=reqs('defaults.txt')
+    # print(resp)
+    # return []
+    return resp
+
+# install_requires=[
+#     'SQLAlchemy>=1.4.39,<2.0.0',
+#     'python-dotenv',
+#     "psycopg2-binary==2.9.6; sys_platform == 'win32' and python_version >= '3.7' and python_version < '3.8'",
+#     "psycopg2-binary>=2.9.6; sys_platform == 'win32' and python_version >= '3.8'",
+#     "psycopg2==2.9.1; sys_platform == 'linux' and python_version >= '3.7' and python_version < '3.8'",
+#     "psycopg2>=2.9.1; sys_platform == 'linux' and python_version >= '3.8'",
+# ]
+
+def packages_to_exclude():
+    """Get list of requirements required for installation."""
+    excludes=["docs","dist","tests", "*.tests", "*.tests.*", "tests.*"]
+    return excludes
+
 
 meta = parse_dist_meta()
+# print("Meta data")
+# print(meta)
+
+''' 
+update references
+py -m pip install --upgrade pip setuptools wheel
+upload to testpy 
+twine upload --repository testpypi dist/* --verbose
+check dist
+twine check --strict dist/*
+upload to pipy 
+twine upload dist/* --verbose
+Test pip
+pip install -i https://test.pypi.org/simple/ simple-task-manager==0.1.4
+
+'''
 
 setup(
     name=meta['name'],
     version=meta['version'],
     description=meta['description'],
     long_description=long_description(),
+    long_description_content_type='text/markdown',
     author=meta['author'],
     author_email=meta['contact'],
     url=meta['homepage'],
+    project_urls={
+        "Bug Tracker": meta['bug_tracker'],
+        "Source Code": meta['source_code'],
+    },
     license=license,
     install_requires=install_requires(),
-    packages=find_packages(exclude=('tests', 'docs','dist'))
+    packages=find_packages(exclude=packages_to_exclude())
     ,classifiers=[
-        "Programming Language :: Python :: 3",
-        "License :: OSI Approved :: Apache 2.0 License",
-        "Operating System :: OS Independent",
+        "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: 3 :: Only",
+        "Topic :: System :: Distributed Computing",
+        "Operating System :: OS Independent"
     ],
     python_requires='>=3.7'
 )

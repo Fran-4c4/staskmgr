@@ -48,8 +48,8 @@ class DBBase(object):
         # print(__name__ + "DBBase Destructor called")
         try:
             self.closeSession()
-        except Exception as oEx:
-            print("DBBase" + str(oEx))
+        except Exception as ex:
+            print(f"DBBase __del__ {str(ex)}" )
 
     def closeSession(self):
         """
@@ -84,6 +84,8 @@ class DBBase(object):
         elif self.session:
             return self.session.rollback()
 
+    def get_session(self) -> Session:
+        return self.getsession()
 
     def getsession(self) -> Session:
         """

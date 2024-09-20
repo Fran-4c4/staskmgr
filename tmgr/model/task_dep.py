@@ -1,11 +1,13 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
+from typing import Type
 from sqlalchemy import Column, ForeignKey
+from sqlalchemy.ext.declarative import DeclarativeMeta
 
-from .BaseManager import BaseManager
-base_orm=BaseManager.get_base()
+from .base_manager import BaseManager
+BASE_ORM:Type[DeclarativeMeta]=BaseManager.get_base()
 
-class TaskDep(base_orm):
+class TaskDep(BASE_ORM):
     """ TaskDep ORM model
 
     Args:
