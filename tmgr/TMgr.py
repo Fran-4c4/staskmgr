@@ -1,7 +1,10 @@
-
+import sys
+import os
+import json
 import logging
 import logging.handlers
 import time
+import argparse
 from typing import Dict
 
 from .periodic_task import PeriodicTask
@@ -13,17 +16,20 @@ from .db_base import DBBase
 from .task_db import TaskDB
 from .enums.task_status_enum import TaskStatusEnum
 from .task_loader import TaskLoader
+
 class TMgr():
     """class to manage task from DDBB
 
     Returns:
         int: value of the task
     """    
+    taskmgr_name="staskmgr"
     configuration_file=None #"appconfig.json"
     
     task_definitions={}
     
     th_check_configuration=None
+    
     
     def __init__(self,config_like:any,taskmgr_name="staskmgr"):
         """
@@ -41,6 +47,7 @@ class TMgr():
             max_wait_count (int): max wait time. This is useful when you create a manager in a docker and you want to wait to reutilize the hardware. Task manager will wait this time by the number of counts.
         """
         self.log = logging.getLogger(__name__)
+        self.taskmgr_name=taskmgr_name
         self.configuration_file=config_like  
         self.max_wait_count=10
         self.wait_between_tasks_seconds=1
@@ -81,7 +88,7 @@ class TMgr():
         DBMgr().init_database(db_config)
 
         self.config_tmgr_from_ddbb() 
-        self.log.info("Initial DDBB configuration loaded.")       
+        self.log.info(f"Initial DDBB configuration loaded for {self.taskmgr_name}")       
         self.config_task_definitions()
         
         if self.app_config.get("check_configuration_interval",-1)>0:
@@ -99,7 +106,7 @@ class TMgr():
         self.max_wait_count=cfg.get("max_wait_count",10) 
         self.wait_between_tasks_seconds=cfg.get("wait_between_tasks_seconds",1) 
         self.monitor_wait_time_seconds=cfg.get("monitor_wait_time_seconds",-1) 
-        self.log.debug("Configuration loaded...................................")
+        self.log.debug(f"Configuration loaded  for {self.taskmgr_name}")
         
         
     def config_task_definitions(self): 
@@ -110,7 +117,7 @@ class TMgr():
     def stop_tasks(self):
         """stop internal threads
         """        
-        self.log.info("Stop threads")
+        self.log.debug("Stop threads if needed.")
         if self.th_check_configuration:
             self.th_check_configuration.stop()
           
@@ -135,7 +142,7 @@ class TMgr():
         db=DBBase()
         session = db.getsession()
         try:
-            task_types=self.app_config["mgr_config"].get("config",{}).get("task_types")
+            task_types=self.app_config["mgr_config"].get("task_types")
             task=TaskDB(scoped_session=session).get_pending_task(task_types=task_types) 
             return task
         except Exception as oEx:
@@ -182,6 +189,7 @@ class TMgr():
         db=DBBase()
         session=db.getsession()
         proc_db=TaskDB(scoped_session=session)
+        
 
         try:
            
@@ -190,7 +198,7 @@ class TMgr():
             if resp["status"]==TaskStatusEnum.CHECKING:   
                 #hasta que cambiemos el proceso en fargate
                 # proc_db.update_status(id=id_task,new_status=TaskStatusEnum.PENDING,prev_status=TaskStatusEnum.CHECKING) 
-                launchType=None  
+                launchType:str=""  
                 task_obj=self.get_task(id_task)
                 task_type=str(task_obj.type).upper()  
                 task_ret={} #self.tasks_list[task_type](**_params)
@@ -201,7 +209,7 @@ class TMgr():
                     return 
 
                 
-                launchType=task_config["task_handler"].get("launchType","")
+                launchType=task_config.get("launchType","")
                 if not "task_definition" in task_config:
                     task_config["task_definition"]={}
                 task_config["task_definition"]["task_id_task"]=str(id_task)
@@ -211,7 +219,7 @@ class TMgr():
                     tl=TaskLoader(task_config)
                     #-----------START TASK  --------------------
                     
-                    task_ret=tl.run_task()
+                    # task_ret=tl.run_task()
                     
                     #-----------END TASK    --------------------
                 except Exception as ex:
@@ -224,14 +232,20 @@ class TMgr():
                     proc_db.update_status(id=id_task,new_status=TaskStatusEnum.ERROR,output=msg) 
                     log.error(f"Task {id_task} launched with errors: {msg}") 
                 else:
-                    if launchType=="INTERNAL": 
+                    if launchType.upper()=="INTERNAL": 
                         msg=task_ret.get('message',None)
                         progress=100
                         proc_db.update_status(id=id_task,new_status=TaskStatusEnum.FINISHED,output=msg,progress=progress) 
-                    log.info(f"Task {id_task} launched sucessfully.")       
+                    log.info(f"Task {id_task} finished.") 
+                    
+                
+                task_ret["next_task_wait_seconds"]=task_config.get("next_task_wait_seconds",0)
+
             else:
                 # No se ha podido actualizar, bien porque se ha borrado, porque ya se ha ejecutado, etc. 
                 log.warning(f"Task {id_task} not launched. Maybe was deleted or executed in other process.")  
+                
+            return task_ret
 
         except Exception as ex:
             self.log.error(f"Task {id_task} raised error {str(ex)}")
@@ -247,8 +261,8 @@ class TMgr():
                 task = self.fetch_pending_tasks()
                 if task:
                     task_id = str(task.id)
-                    self.execute_task(task_id)  
-                    next_task_wait_seconds=task.config.get("next_task_wait",0)
+                    task_ret=self.execute_task(task_id)  
+                    next_task_wait_seconds=task_ret.get("next_task_wait_seconds",0)
                     if self.wait_between_tasks_seconds >0 or next_task_wait_seconds>0: 
                         #When we use this? When the task is executed in a thread, or in flow where we want to wait a time like upscalling resources 
                         if next_task_wait_seconds>  self.wait_between_tasks_seconds:
