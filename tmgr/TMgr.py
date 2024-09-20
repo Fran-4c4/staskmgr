@@ -1,10 +1,7 @@
-import sys
-import os
-import json
+
 import logging
 import logging.handlers
 import time
-import argparse
 from typing import Dict
 
 from .periodic_task import PeriodicTask
@@ -16,8 +13,6 @@ from .db_base import DBBase
 from .task_db import TaskDB
 from .enums.task_status_enum import TaskStatusEnum
 from .task_loader import TaskLoader
-from .env_loader import EnvLoader
-
 class TMgr():
     """class to manage task from DDBB
 
@@ -50,8 +45,7 @@ class TMgr():
         self.max_wait_count=10
         self.wait_between_tasks_seconds=1
         self.monitor_wait_time_seconds=-1
-        
-        EnvLoader(app_name=taskmgr_name) #LOAD ENVIRONMENT VARS
+
         self.init_configuration(config_like=config_like)
         
 
@@ -254,13 +248,19 @@ class TMgr():
                 if task:
                     task_id = str(task.id)
                     self.execute_task(task_id)  
+                    next_task_wait_seconds=task.config.get("next_task_wait",0)
+                    if self.wait_between_tasks_seconds >0 or next_task_wait_seconds>0: 
+                        #When we use this? When the task is executed in a thread, or in flow where we want to wait a time like upscalling resources 
+                        if next_task_wait_seconds>  self.wait_between_tasks_seconds:
+                           wait_between_tasks_seconds= next_task_wait_seconds
+                        else:
+                           wait_between_tasks_seconds =self.wait_between_tasks_seconds
+                        time.sleep(wait_between_tasks_seconds) 
                     max_wait_counter=0                     
                 else:                    
-                    if self.wait_between_tasks_seconds >0:    
-                        self.log.debug(f"No pending tasks. Try:{max_wait_counter}  waiting... {self.wait_between_tasks_seconds} seconds")             
-                        time.sleep(self.wait_between_tasks_seconds) 
                     max_wait_counter+=1
                     if self.monitor_wait_time_seconds>0 and max_wait_counter==self.max_wait_count:
+                        self.log.info(f"No pending tasks stopping Task manager. Wait time was {str(self.monitor_wait_time_seconds)} seconds ")
                         return
                 if  self.monitor_wait_time_seconds>0:   
                     time.sleep(self.monitor_wait_time_seconds)  # Espera antes de volver a verificar
