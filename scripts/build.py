@@ -2,6 +2,7 @@ import shutil
 import subprocess
 import os
 import sys
+import argparse
 
 # Obtener la ruta al directorio raíz del proyecto
 root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
@@ -51,12 +52,42 @@ def build():
 
 
 
+def upload_to_pypi():
+    subprocess.run(['twine', 'upload', 'dist/*', '--verbose'])
 
+def ask():
+    print("\n")
+    print("Options:")
+    print("1. build package")
+    print("2. upload to pypi")
+    print("3. Tag package using package version")
+    print("4. Full: build, upload, tag")  
+    print("0. Exit")    
+    opcion = input("Select an option: ")
 
+    return opcion
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='Task operations')
+    parser.add_argument('--full', help='Execute all actions')
+    parser.add_argument('--build', help='Build package')
+    parser.add_argument('--tag', help='Tag version using package version')
+    args = parser.parse_args()
+    
     version = get_version()
-    # commit_and_tag(version)
-    delete_old()
-    build()
-    # upload_to_pypi()
+    opcion=-1
+    while opcion!='0':
+        opcion=ask()
+        if opcion=='1':          
+            delete_old()
+            build()                
+        elif opcion=='2':     
+            upload_to_pypi()     
+        elif opcion=='3':     
+            commit_and_tag(version)
+        elif opcion=='4':        
+            delete_old()
+            build()                
+            upload_to_pypi()
+            commit_and_tag(version)                
+          
