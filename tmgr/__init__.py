@@ -1,6 +1,6 @@
 """Simple task manager"""
 __name__ = 'simple_task_manager'
-__version__     = '1.5.6'
+__version__     = '1.5.8'
 __author__      = 'Francisco R. Moreno Santana'
 __contact__     = 'franrms@gmail.com'
 __homepage__    = 'https://github.com/Fran-4c4/staskmgr'
@@ -10,9 +10,11 @@ __description__ ='Simple task manager to handle execution of tasks in AWS or doc
 __bug_tracker__ = "https://github.com/Fran-4c4/staskmgr/issues"
 __source_code__ = "https://github.com/Fran-4c4/staskmgr"
 
+import time
+from .tmgr import TMgr
+from .task_handler_interface import TaskHandlerInterface
 
-from .tmgr import *
-from .task_handler_interface import *
+
 #
 #_startTime is used as the base when calculating the relative time of events
 #

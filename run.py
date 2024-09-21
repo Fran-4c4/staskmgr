@@ -10,6 +10,8 @@ from tmgr import TMgr
 from tmgr.log_handlers.postgres_handler import  PostgreSQLHandler
 from tmgr.log_handlers.origin_filter import OriginFilter
 
+ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
+
 
 def load_env(app_name="staskmgr",env_name="DEV") -> None:
     # Get the user's home directory

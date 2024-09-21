@@ -23,40 +23,7 @@ def commit_and_tag(version):
     subprocess.run(['git', 'push', 'origin', 'main', '--tags'])
 
 
-
-
-
-# Comprobar si el entorno virtual está activado
-if sys.prefix == sys.base_prefix:
-    print("El entorno virtual no está activado.")
-else:
-    print("Entorno virtual activado.")
-    
-def delete_old():
-    # Directorios a eliminar
-    dirs_to_remove = [os.path.join(root_dir, 'build'), os.path.join(root_dir, 'dist')]
-
-    # Borrar los directorios si existen
-    for dir in dirs_to_remove:
-        if os.path.exists(dir):
-            shutil.rmtree(dir)
-            print(f"Deleted directory {dir}")
-
-def build():
-    # Ejecutar setup.py para generar el wheel y sdist
-    setup_path = os.path.join(root_dir, 'setup.py')   
-
-    print(f"setup_path: {setup_path}")
-    subprocess.run([sys.executable, setup_path, "sdist", "bdist_wheel"])
-
-
-
-
-
-
 if __name__ == '__main__':
     version = get_version()
-    # commit_and_tag(version)
-    delete_old()
-    build()
+    commit_and_tag(version)
     # upload_to_pypi()

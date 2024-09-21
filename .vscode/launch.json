@@ -5,7 +5,7 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Start tmgr",
+            "name": "Run tmgr ",
             "type": "debugpy",
             "request": "launch",
             "program": "${workspaceFolder}/run.py",
@@ -13,5 +13,30 @@
             "console": "integratedTerminal",
             "justMyCode": false
         },
+        {
+            "name": "Start tmgr module",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/python",
+            "envFile": "${workspaceFolder}/.env",
+            "console": "integratedTerminal",
+            "args": [
+                "-m","tmgr","config_file","..config/appconfig.json"
+            ],
+            "justMyCode": false
+        },
+        {
+            "name": "Start tmgr module2",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/tmgr/__main__.py",  // Ejecuta el módulo principal
+            "envFile": "${workspaceFolder}/.env",
+            "console": "integratedTerminal",
+            "args": [
+                "config_file", "../config/appconfig.json"  // Argumentos personalizados
+            ],
+            "justMyCode": false
+        }
+        
     ]
 }

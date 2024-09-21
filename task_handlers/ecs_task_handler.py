@@ -132,13 +132,15 @@ class ECSTaskHandler(TaskHandlerInterface):
                 response = run_task()
                 if response is None:
                     attempts += 1
-                    self.log.info(f"Increasing autoscaling group, waiting... Try {attempts}/{max_attempts}")
+                    self.log.info(f"Increasing autoscaling group, waiting {self.auto_scaling_group_wait_time}seconds ... Try {attempts}/{max_attempts}")
                     time.sleep(self.auto_scaling_group_wait_time)  # Esperar un tiempo antes de volver a intentar
         
 
             
-            self.log.info(json.dumps(response, indent=4, default=str))
+            
             if response and 'failures' in response and len(response['failures']) == 0:
+                log_resp=json.dumps(response, indent=4, default=str)
+                self.log.info(f"Instance launched. {log_resp}")
                 return True
             else:
                 raise Exception("There is an error throwing the task")

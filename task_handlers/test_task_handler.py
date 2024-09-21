@@ -1,7 +1,7 @@
 
 import logging
 
-from taskmgr.tmgr.task_handler_interface import TaskHandlerInterface
+from tmgr.task_handler_interface import TaskHandlerInterface
 
 class TestTaskHandler(TaskHandlerInterface):
     """sample task handler
@@ -17,18 +17,19 @@ class TestTaskHandler(TaskHandlerInterface):
     def config(self):
         """config class
         """ 
-        print(f"Config  test task with params: {self.task_data}")
+        self.log.info(f"Config  test task with params: {self.task_data}")
         pass
     
        
     def run_task(self, **kwargs):
         task_definition=kwargs.get("task_definition")
         if task_definition is None:
+            self.log.error("Task definition is None. Please check definition data.")
             raise Exception ("Task definition is None. Please check definition data.") 
         else:   
-            print(f"Executing test task with task_definition: {task_definition}")
+            self.log.info(f"Executing test task with task_definition: {task_definition}")
             
         self.task_data=task_definition
         self.config() #or we can pass the data here
-        print(f"Executing test task with params: {kwargs}")
+        self.log.info(f"Executing test task with params: {kwargs}")
         

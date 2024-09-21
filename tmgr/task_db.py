@@ -11,8 +11,9 @@ from sqlalchemy import and_
 
 from .db_base import DBBase
 from .model.task import Task
-from .enums.task_status_enum import TaskStatusEnum
 from .model.task_dep import TaskDep
+from .enums.task_status_enum import TaskStatusEnum
+
 
 class TaskDB(DBBase):
 
@@ -256,8 +257,31 @@ class TaskDB(DBBase):
         return dependencies 
         
 
+    def reset_status(self):
+        session = self.getsession()
+        try:
+            sql = """UPDATE tmgr_tasks
+                    SET status = :p_new_status
+                    , output= :p_output
+                    where status ILIKE :p_check_status
+            """
+            parameters = { 'p_check_status':str(TaskStatusEnum.CHECKING)
+                          ,'p_new_status': str(TaskStatusEnum.PENDING)
+                           ,'p_output': 'Reset to pending by system reload.'
+                          }    
+            sqltext_query = sqltext(sql)
+            result = session.execute(sqltext_query, parameters)
+            session.commit()
+            self.log.info("Task Checking status reseted to pending")
+        except SQLAlchemyError as e:
+            if hasattr(e, '_message'):
+                error_message = e._message  # Usar el mensaje completo si está disponible
+            else:
+                error_message = " ".join(e.args) if e.args else str(e)
+            raise Exception(error_message)
 
-
+        except Exception as e:
+            raise
 
     def update_status(self, id: str, new_status: TaskStatusEnum, prev_status=None, output=None, **kwargs):
         session = self.getsession()
@@ -265,8 +289,9 @@ class TaskDB(DBBase):
             id = str(id)
             sql = """UPDATE tmgr_tasks
                     SET status = :new_status
+                    , modify_date= NOW()
             """
-            parameters = {'new_status': str(new_status)}
+            parameters = {'new_status': str(new_status) }
 
             if output is not None:
                 sql += ", output = :output"

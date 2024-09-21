@@ -1,4 +1,5 @@
 import importlib
+import logging
 import os
 import sys
 
@@ -16,6 +17,7 @@ class TaskLoader:
         Args:
             config (dict): loader configuration
         """        
+        self.log = logging.getLogger(__name__)
         self.config = config
         self.task_info = self.config['task_handler']
         
@@ -23,18 +25,19 @@ class TaskLoader:
         self.class_name = self.task_info['class']
         self.task_name = self.task_info['name']
         self.task_path = self.task_info.get('path')
-        self.configure_task_path()
+        self._configure_task_path()
         
         
-    def configure_task_path(self):
+    def _configure_task_path(self):
         self.task_path = self.task_info.get('path')
         if self.task_path:
             task_path = self.task_path                   
             # Check if the path is absolute
             if not os.path.isabs(task_path):
                 # If it's not absolute, resolve it relative to the application path
-                app_path = os.path.dirname(os.path.abspath(__file__))  # Application's base directory
+                app_path =sys.path[0] #os.path.dirname(os.path.abspath(__file__))  # Application's base directory
                 task_path = os.path.abspath(os.path.join(app_path, task_path))  # Resolve the relative path
+                self.log.debug(f"TaskLoader.configure_task_path {task_path}")
 
             # Check if the path exists and add to sys.path if it's not already there
             if os.path.exists(task_path) and task_path not in sys.path:
