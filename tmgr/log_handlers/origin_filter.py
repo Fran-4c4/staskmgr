@@ -18,6 +18,6 @@ class OriginFilter(logging.Filter):
         self.origin = origin or os.getpid()
 
     def filter(self, record):
-        record.asctime = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(record.created))
+        record.asctime = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime(record.created))
         record.origin = self.origin
         return True
