@@ -22,7 +22,7 @@ def commit_and_tag(version):
     # subprocess.run(['git', 'commit', '-m', f"Versión {version}"])
     subprocess.run(['git', 'tag', '-a', f"v{version}", '-m', f"Release {version}"])
     subprocess.run(['git', 'push', 'origin', 'main', '--tags'])
-
+    print("Tag project")
 
 
 
@@ -49,15 +49,17 @@ def build():
 
     print(f"setup_path: {setup_path}")
     subprocess.run([sys.executable, setup_path, "sdist", "bdist_wheel"])
-
+    print("Package build")
 
 
 def upload_to_pypi():
     subprocess.run(['twine', 'upload', 'dist/*', '--verbose'])
+    print("Package uploaded")
 
 def ask():
     print("\n")
-    print("Options:")
+    version = get_version()
+    print(f"Options for version {version}:")
     print("1. build package")
     print("2. upload to pypi")
     print("3. Tag package using package version")
@@ -68,11 +70,12 @@ def ask():
     return opcion
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Task operations')
-    parser.add_argument('--full', help='Execute all actions')
-    parser.add_argument('--build', help='Build package')
-    parser.add_argument('--tag', help='Tag version using package version')
-    args = parser.parse_args()
+    
+    # parser = argparse.ArgumentParser(description='Task operations')
+    # parser.add_argument('--full', help='Execute all actions')
+    # parser.add_argument('--build', help='Build package')
+    # parser.add_argument('--tag', help='Tag version using package version')
+    # args = parser.parse_args()
     
     version = get_version()
     opcion=-1
