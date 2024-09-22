@@ -25,7 +25,7 @@ except Exception as oEx:
 ```
 
 ## Database tables
-There are some tables needed for STMGR to work.
+There are some tables needed for STMGR to work. The script for this tables is in file **ddbb_script.sql** config folder. See table creation in folder config\ddbb_script.sql or [Configuration scripts](./configuration_sql.md)
 
 <table>
   <tr>

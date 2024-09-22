@@ -32,6 +32,8 @@ class TMgr():
     
     th_check_configuration=None
     
+    tasks_active=[]
+    
     
     def __init__(self,config_like:any,taskmgr_name="staskmgr"):
         """
@@ -49,6 +51,7 @@ class TMgr():
             max_wait_count (int): max wait time. This is useful when you create a manager in a docker and you want to wait to reutilize the hardware. Task manager will wait this time by the number of counts.
         """
         self.log = logging.getLogger(__name__)
+        self.log.info(f"Starting STMR for {taskmgr_name}")  
         self.taskmgr_name=taskmgr_name
         self.configuration_file=config_like  
         self.max_wait_count=10
@@ -98,11 +101,11 @@ class TMgr():
         #INIT DATABASE
         db_config=self.app_config["DDBB_CONFIG"]
         DBMgr().init_database(db_config)
-
+        self.log.info(f"Loading initial DDBB configuration for {self.taskmgr_name}") 
         self.config_tmgr_from_ddbb() 
-        self.log.info(f"Initial DDBB configuration loaded for {self.taskmgr_name}")  
+         
         TaskDB().reset_status()     
-        self.load_task_definitions()
+        self._load_task_definitions()
         
         if self.app_config.get("check_configuration_interval",-1)>0:
             self.th_check_configuration=PeriodicTask(interval=10, task_function=self.config_tmgr_from_ddbb)
@@ -122,14 +125,15 @@ class TMgr():
         self.log.debug(f"Configuration loaded  for {self.taskmgr_name}")
         
         
-    def load_task_definitions(self): 
-        """load task handlers
+    def _load_task_definitions(self): 
+        """load task handlers from config file
         """           
         self.task_definitions=self.app_config.get("task_handlers",{})
         count=0
         if self.task_definitions is None:
             pass
         else:
+            count=len(self.task_definitions)
             self.log.info(f"Task definitions loaded from config file: {count}")
 
     def stop_tasks(self):
@@ -163,7 +167,7 @@ class TMgr():
             task_types=self.app_config["mgr_config"].get("task_types")
             task=TaskDB(scoped_session=session).get_pending_task(task_types=task_types) 
             return task
-        except Exception as oEx:
+        except Exception:
             raise 
         finally:
             db.closeSession()
@@ -213,28 +217,23 @@ class TMgr():
             _type_: _description_
         """      
         log=self.log
-        log.info(f"Executing task...{id_task}")   
+        log.info(f"Starting task execution: {id_task}")   
         task_ret=0
         db=DBBase()
         session=db.getsession()
-        proc_db=TaskDB(scoped_session=session)
-        
-
-        try:
-           
-            #update task to WAIT_EXECUTION
-            resp=proc_db.update_status(id=id_task,new_status=TaskStatusEnum.CHECKING,prev_status=TaskStatusEnum.PENDING,output="" )
+        task_db=TaskDB(scoped_session=session)       
+        try:           
+            #update task to CHECKING
+            resp=task_db.update_status(id=id_task,new_status=TaskStatusEnum.CHECKING,prev_status=TaskStatusEnum.PENDING,output="" )
             if resp["status"]==TaskStatusEnum.CHECKING:   
-                #hasta que cambiemos el proceso en fargate
-                # proc_db.update_status(id=id_task,new_status=TaskStatusEnum.PENDING,prev_status=TaskStatusEnum.CHECKING) 
                 launchType:str=""  
                 task_obj=self.get_task(id_task)
                 task_type=str(task_obj.type).upper()  
-                task_ret={} #self.tasks_list[task_type](**_params)
+                task_ret={} 
                 task_config=self.task_definition_fetch(task_definition=task_type)                
                 if task_config is None:
-                    msg=f"task definition not recognized: {task_type}"
-                    proc_db.update_status(id=id_task,new_status=TaskStatusEnum.ERROR,output=msg)
+                    msg=f"task definition not found: {task_type}"
+                    task_db.update_status(id=id_task,new_status=TaskStatusEnum.ERROR,output=msg)
                     return 
 
                 
@@ -243,7 +242,7 @@ class TMgr():
                     task_config["task_definition"]={}
                 task_config["task_definition"]["task_id_task"]=str(id_task)
                 
-                resp=proc_db.update_status(id=id_task,new_status=TaskStatusEnum.WAIT_EXECUTION )
+                resp=task_db.update_status(id=id_task,new_status=TaskStatusEnum.WAIT_EXECUTION )
                 tl=None
                 try:
                     tl=TaskLoader(task_config)
@@ -254,15 +253,15 @@ class TMgr():
                     
                     if task_ret.get("status","").upper()=="ERROR":
                         msg=task_ret['message']
-                        proc_db.update_status(id=id_task,new_status=TaskStatusEnum.ERROR,output=msg) 
+                        task_db.update_status(id=id_task,new_status=TaskStatusEnum.ERROR,output=msg) 
                         log.error(f"Task {id_task} launched with errors: {msg}") 
                     else:
-                        if launchType.upper()=="INTERNAL": 
+                        if launchType.upper()==LitEnum.LAUNCHTYPE_INTERNAL: 
                             #We set task_next_status to FINISHED if it is not informed.
                             task_next_status=task_config["task_handler"].get("task_next_status",TaskStatusEnum.FINISHED) 
                             msg=task_ret.get('message',None)
                             progress=100                                                        
-                            proc_db.update_status(id=id_task,new_status=task_next_status,output=msg,progress=progress) 
+                            task_db.update_status(id=id_task,new_status=task_next_status,output=msg,progress=progress) 
                         log.info(f"Task {id_task} finished.")                     
                     
                     
@@ -271,7 +270,7 @@ class TMgr():
                     msg=str(ex)
                     task_ret['message']=msg
                     task_ret["status"]="ERROR"
-                    proc_db.update_status(id=id_task,new_status=TaskStatusEnum.ERROR,output=msg,progress=0) 
+                    task_db.update_status(id=id_task,new_status=TaskStatusEnum.ERROR,output=msg,progress=0) 
 
                 task_ret["next_task_wait_seconds"]=task_config.get("next_task_wait_seconds",0)
 

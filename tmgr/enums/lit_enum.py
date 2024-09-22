@@ -11,4 +11,5 @@ class LitEnum(str,EnumBase):
     DB_CFG="DB_CFG",
     DB_ONLY="DB_ONLY",
     
-    TASK_NEXT_STATUS="task_next_status"
+    TASK_NEXT_STATUS="task_next_status",
+    LAUNCHTYPE_INTERNAL="INTERNAL"

@@ -1,3 +1,8 @@
+# Simple Task Manager (STMGR)
+
+## DDBB sql script creation
+
+```javascript
 
 -- DROP TABLE public.tmgr_config;
 
@@ -85,3 +90,5 @@ VALUES('MAIN_MGR', 'MAIN_MGR', '{"task_types": ["TEST_MGR"], "max_wait_count": 2
 INSERT INTO public.tmgr_task_definitions
 (id, "name", active, config)
 VALUES('TEST_MGR', 'TEST_MGR', true, '{"task_handler": {"name": "TestTaskHandler", "path": "task_handlers", "class": "TestTaskHandler", "module": "test_task_handler", "launchType": "INTERNAL", "task_next_status": "FINISHED"}}'::jsonb);
+
+```

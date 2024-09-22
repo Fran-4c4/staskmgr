@@ -272,7 +272,7 @@ class TaskDB(DBBase):
             sqltext_query = sqltext(sql)
             result = session.execute(sqltext_query, parameters)
             session.commit()
-            self.log.info("Task Checking status reseted to pending")
+            self.log.info("Reset all tasks in Checking status to pending.")
         except SQLAlchemyError as e:
             if hasattr(e, '_message'):
                 error_message = e._message  # Usar el mensaje completo si está disponible

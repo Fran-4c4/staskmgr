@@ -16,18 +16,12 @@ pip install git+https://github.com/Fran-4c4/staskmgr
 
 
 ## Usage
-- First you need to configure the minimum parameters in order to run tasks. See  
-- Second include 
+- First you need to configure the minimum parameters in order to run tasks. See  [Configuration](./docs/configuration.md)
+- Second you need a database to store configuration and task management. See table creation in folder config\ddbb_script.sql or [Configuration scripts](./docs/configuration_sql.md)
 
 
-
-Bienvenido al **Simple Task Manager**. Para obtener más detalles sobre la configuración, el uso y las preguntas frecuentes, consulta los siguientes documentos:
-
-- [Configuration](./docs/configuration.md)
-- [FAQ](./docs/faq.md)
 
 More info in github [GitHub](https://github.com/Fran-4c4/staskmgr).
-
 
 ---
 
@@ -47,10 +41,9 @@ In order to manage other types you need to create a class and an entry in DDBB o
 ```
 
 # DDBB configuration
-You need a DDBB with 2  tables:
-- tmgr_tasks: Info with the task
-- tmgr_tasks_dep: Info with task dependencies needed by task to be exceuted.
-See table creation in config\ddbb_script.sql
+You need a DDBB with the configuration:
+
+
 
 # Test in local 
 Install using pip in your project using
