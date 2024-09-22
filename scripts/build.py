@@ -77,9 +77,10 @@ if __name__ == '__main__':
     # parser.add_argument('--tag', help='Tag version using package version')
     # args = parser.parse_args()
     
-    version = get_version()
+    
     opcion=-1
     while opcion!='0':
+        version = get_version()
         opcion=ask()
         if opcion=='1':          
             delete_old()
