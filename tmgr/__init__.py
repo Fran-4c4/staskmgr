@@ -1,6 +1,6 @@
 """Simple task manager"""
 __name__ = 'simple_task_manager'
-__version__     = '1.5.15'
+__version__     = '1.5.16'
 __author__      = 'Francisco R. Moreno Santana'
 __contact__     = 'franrms@gmail.com'
 __homepage__    = 'https://github.com/Fran-4c4/staskmgr'
