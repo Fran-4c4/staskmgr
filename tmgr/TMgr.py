@@ -4,9 +4,12 @@ import os
 import json
 import logging
 import logging.handlers
+import threading
 import time
 import argparse
 from typing import Dict
+
+from tmgr.model.config import Config
 
 from .enums.lit_enum import LitEnum
 from .periodic_task import PeriodicTask
@@ -25,14 +28,11 @@ class TMgr():
     Returns:
         int: value of the task
     """    
-    taskmgr_name="staskmgr"
-    configuration_file=None #"appconfig.json"
-    
-    task_definitions={}
-    
-    th_check_configuration=None
-    
+    configuration_file=None #"appconfig.json"    
+    task_definitions={}    
+    th_check_configuration=None    
     tasks_active=[]
+    lock = threading.Lock()
     
     
     def __init__(self,config_like:any,taskmgr_name="staskmgr"):
@@ -52,12 +52,11 @@ class TMgr():
         """
         self.log = logging.getLogger(__name__)
         self.log.info(f"Starting STMR for {taskmgr_name}")  
-        self.taskmgr_name=taskmgr_name
+        self.cfg=Config()
+        self.cfg.taskmgr_name=taskmgr_name
         self.configuration_file=config_like  
-        self.max_wait_count=10
-        self.wait_between_tasks_seconds=1
-        self.monitor_wait_time_seconds=-1
-
+        self.max_wait_counter=0
+ 
         self.init_configuration(config_like=config_like)
         
 
@@ -98,18 +97,23 @@ class TMgr():
         """        
         cfgh=ConfigurationHelper() 
         self.app_config= cfgh.load_config(config_like= config_like)  
+        self.cfg.load_parse_cfg_file(config_like=self.app_config)
         #INIT DATABASE
-        db_config=self.app_config["DDBB_CONFIG"]
-        DBMgr().init_database(db_config)
-        self.log.info(f"Loading initial DDBB configuration for {self.taskmgr_name}") 
+        DBMgr().init_database(self.cfg.DDBB_CONFIG)
+        self.log.info(f"Loading initial DDBB configuration for {self.cfg.taskmgr_name}") 
         self.config_tmgr_from_ddbb() 
          
         TaskDB().reset_status()     
         self._load_task_definitions()
         
-        if self.app_config.get("check_configuration_interval",-1)>0:
-            self.th_check_configuration=PeriodicTask(interval=10, task_function=self.config_tmgr_from_ddbb)
+        if self.cfg.check_configuration_interval>0:
+            self.th_check_configuration=PeriodicTask(interval=self.cfg.check_configuration_interval, task_function=self.config_tmgr_from_ddbb)
             self.th_check_configuration.start()
+            self.log.info(f"Check DDBB configuration each {self.cfg.check_configuration_interval}seconds")
+            
+
+
+                        
         
     def config_tmgr_from_ddbb(self):
         """config manager
@@ -119,10 +123,33 @@ class TMgr():
         """        
         cfg:Dict=TaskDB().get_task_mgr_configuration(self.app_config["manager_name"]).config
         self.app_config["mgr_config"]=cfg
-        self.max_wait_count=cfg.get("max_wait_count",10) 
-        self.wait_between_tasks_seconds=cfg.get("wait_between_tasks_seconds",1) 
-        self.monitor_wait_time_seconds=cfg.get("monitor_wait_time_seconds",-1) 
-        self.log.debug(f"Configuration loaded  for {self.taskmgr_name}")
+        self.cfg.task_types=cfg.get("task_types",[])
+        
+        old_max_wait_count=self.cfg.max_wait_count
+        self.cfg.max_wait_count=cfg.get("max_wait_count",10) 
+        self.cfg.wait_between_tasks_seconds=cfg.get("wait_between_tasks_seconds",1) 
+        self.cfg.monitor_wait_time_seconds=cfg.get("monitor_wait_time_seconds",-1) 
+        old_check_configuration_interval=self.cfg.check_configuration_interval
+        self.cfg.check_configuration_interval=cfg.get("check_configuration_interval",-1) 
+        old_log_level=self.cfg.log_level
+        self.cfg.log_level=cfg.get("log_level",logging.INFO) 
+        self.log.debug(f"Configuration loaded  for {self.cfg.taskmgr_name}")
+        
+        #reset data if needed
+        if old_log_level!=self.cfg.log_level:
+            self.log.setLevel(level=self.cfg.log_level)
+            
+        if old_max_wait_count!=self.cfg.max_wait_count:
+            with self.lock:
+                self.max_wait_counter=0
+            if self.cfg.max_wait_count==-1:
+                self.log.info("Task manager is in infinite mode.")
+                
+        if self.cfg.check_configuration_interval==0 and self.cfg.check_configuration_interval!=old_check_configuration_interval:
+            self.log.info("Stop check DDBB")
+
+
+
         
         
     def _load_task_definitions(self): 
@@ -164,7 +191,7 @@ class TMgr():
         db=DBBase()
         session = db.getsession()
         try:
-            task_types=self.app_config["mgr_config"].get("task_types")
+            task_types=self.cfg.task_types
             task=TaskDB(scoped_session=session).get_pending_task(task_types=task_types) 
             return task
         except Exception:
@@ -289,28 +316,28 @@ class TMgr():
         """check and execute pending tasks
         """                
         try:
-            max_wait_counter=0
+            self.max_wait_counter=0
             while True:
                 task = self.fetch_pending_tasks()
                 if task:
                     task_id = str(task.id)
                     task_ret=self.execute_task(task_id)  
                     next_task_wait_seconds=task_ret.get("next_task_wait_seconds",0)
-                    if self.wait_between_tasks_seconds >0 or next_task_wait_seconds>0: 
+                    if self.cfg.wait_between_tasks_seconds >0 or next_task_wait_seconds>0: 
                         #When we use this? When the task is executed in a thread, or in flow where we want to wait a time like upscalling resources 
-                        if next_task_wait_seconds>  self.wait_between_tasks_seconds:
+                        if next_task_wait_seconds>  self.cfg.wait_between_tasks_seconds:
                            wait_between_tasks_seconds= next_task_wait_seconds
                         else:
-                           wait_between_tasks_seconds =self.wait_between_tasks_seconds
+                           wait_between_tasks_seconds =self.cfg.wait_between_tasks_seconds
                         time.sleep(wait_between_tasks_seconds) 
-                    max_wait_counter=0                     
+                    self.max_wait_counter=0                     
                 else:                    
-                    max_wait_counter+=1
-                    if self.monitor_wait_time_seconds>0 and max_wait_counter==self.max_wait_count:
-                        self.log.info(f"No pending tasks stopping Task manager. Wait time was {str(self.monitor_wait_time_seconds)} seconds ")
+                    self.max_wait_counter+=1
+                    if self.cfg.monitor_wait_time_seconds>0 and self.max_wait_counter==self.cfg.max_wait_count:
+                        self.log.info(f"No pending tasks stopping Task manager. Wait time was {str(self.cfg.monitor_wait_time_seconds)} seconds between checks. If you want to deactivate automatic close set max_wait_count=-1")
                         return
-                if  self.monitor_wait_time_seconds>0:   
-                    time.sleep(self.monitor_wait_time_seconds)  # Espera antes de volver a verificar
+                if  self.cfg.monitor_wait_time_seconds>0:   
+                    time.sleep(self.cfg.monitor_wait_time_seconds)  # Espera antes de volver a verificar
         finally:
             self.stop_tasks()
     

@@ -1,19 +1,32 @@
 import json
 import os
+import sys
 import logging
+from typing import Dict
 import urllib.parse
 from dotenv import load_dotenv
 from pathlib import Path
 
 
 from tmgr import TMgr
+from tmgr.configuration_helper import ConfigurationHelper
 from tmgr.log_handlers.postgres_handler import  PostgreSQLHandler
 from tmgr.log_handlers.origin_filter import OriginFilter
 
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 
+def file_get_full_path(file_path):
+    if file_path:               
+        # Check if the path is absolute
+        if not os.path.isabs(file_path):
+            # If it's not absolute, resolve it relative to the application path
+            app_path =sys.path[0] #os.path.dirname(os.path.abspath(__file__))  # Application's base directory
+            file_path = os.path.abspath(os.path.join(app_path, file_path))  # Resolve the relative path
+            return file_path
+        else:
+            return file_path
 
-def load_env(app_name="staskmgr",env_name="DEV") -> None:
+def load_env(app_name,env_name,env_folder=".envs") -> None:
     # Get the user's home directory
     home_dir = Path(os.path.expanduser('~'))
 
@@ -21,11 +34,11 @@ def load_env(app_name="staskmgr",env_name="DEV") -> None:
     environment = os.getenv('ENVIRONMENT',env_name )
     print(f"Environment is {environment}")    
 
-    # Build the path to the environment file (e.g., .env.development or .env.production)
+    # Build the path to the environment file (e.g., .env.development or .env.production or .env.DEV)
     fname=f'.env.{app_name}'
     if environment:
         fname+="." + environment
-    env_file = home_dir / '.envs' / fname
+    env_file = home_dir / env_folder / fname
 
     # Load the environment file
     load_dotenv(dotenv_path=env_file)
@@ -33,28 +46,46 @@ def load_env(app_name="staskmgr",env_name="DEV") -> None:
     print("Environment vars loaded")   
 
 
-def init_logging():
+def init_logging(cfg:Dict):
     # Remove logging.basicConfig because it may override your manual settings
+    log_cfg=cfg.get("logging", {})
+    log_level=log_cfg.get("DEFAULT_LOG_LEVEL",logging.DEBUG) 
     logger = logging.getLogger()
-    logger.setLevel(logging.DEBUG) 
+    logger.setLevel( log_level) 
+
 
     # Define formatter with custom 'origin' field
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s - origin: %(origin)s')
+    formatter_str=log_cfg.get("DEFAULT_LOG_FORMATTER","'%(asctime)s -  %(levelname)s - %(name)s-%(funcName)s.%(lineno)d - %(message)s - origin: %(origin)s'") 
+    formatter = logging.Formatter(formatter_str)
 
     # Apply the custom filter with 'origin' field
-    origin_filter = OriginFilter(origin='staskmgr')
-
+    origin_filter = OriginFilter(origin=cfg.get("manager_name", "staskmgr"))
+    log_file=log_cfg.get("LOGFILE")
 
     # Create handlers
-    file_handler = logging.FileHandler('app.log')
+    file_handler = logging.FileHandler(log_file)
     console_handler = logging.StreamHandler()
+    
+    # Add handlers to logger
+    logger.addHandler(file_handler)
+    logger.addHandler(console_handler)
+
+    for handler in logger.root.handlers:
+        # This is lazy and does only the minimum alteration necessary. It'd be better to use
+        # dictConfig / fileConfig to specify the full desired configuration from the start:
+        # http://docs.python.org/2/library/logging.config.html#dictionary-schema-details
+        # handler.setFormatter(CustomFormatter(handler.formatter._fmt))
+        handler.setLevel(log_level)
+        handler.addFilter(origin_filter)
+        handler.setFormatter(formatter)
 
     # Optionally add the PostgreSQL handler
-    use_db_handler = bool(os.getenv("USE_DB_HANDLER", "False"))
+    db_handler_cfg=log_cfg.get("DB_HANDLER",{})
+    use_db_handler = bool(db_handler_cfg.get("USE_DB_HANDLER", "False"))
     if use_db_handler:
         try:
             # Configurar el DSN para PostgreSQL
-            dbcfg = json.loads(os.environ.get('DDBB_CONFIG'))
+            dbcfg = cfg.get('DDBB_CONFIG')
             user = dbcfg.get('user')
             password = dbcfg.get('password')
             host = str(dbcfg.get('host'))
@@ -65,40 +96,29 @@ def init_logging():
 
             pg_handler = PostgreSQLHandler(
                 dsn,
-                table_name='tmgr_logs',
+                table_name=log_cfg.get("TMGR_LOG_FILE", "tmgr_logs") ,
             )    
-            # pg_handler.setLevel(logging.DEBUG)
-            # pg_handler.setFormatter(formatter)
+            pg_handler.setLevel(db_handler_cfg.get("LOG_LEVEL", logging.DEBUG))
+            pg_handler.setFormatter(formatter)
             logger.addHandler(pg_handler)
 
         except Exception as ex:
             print(f'WARNING: DDBB log handler error {str(ex)}')
 
-    # Add handlers to logger
-    logger.addHandler(file_handler)
-    logger.addHandler(console_handler)
-
-    for handler in logger.root.handlers:
-        # This is lazy and does only the minimum alteration necessary. It'd be better to use
-        # dictConfig / fileConfig to specify the full desired configuration from the start:
-        # http://docs.python.org/2/library/logging.config.html#dictionary-schema-details
-        # handler.setFormatter(CustomFormatter(handler.formatter._fmt))
-        handler.setLevel(logging.DEBUG)
-        handler.addFilter(origin_filter)
-        handler.setFormatter(formatter)
 
 if __name__ == "__main__":
 
-    load_env()
-    config_like="appconfig.json" 
-    curDir = os.path.dirname(os.path.abspath(__file__))
-    full_path = os.path.join(curDir, 'config', config_like)
+    load_env(app_name="stmgr",env_name="DEV")
+    config_like=os.getenv("stmgr_config_file", "config/appconfig.json" )
+    full_path=file_get_full_path(file_path=config_like)
     config_like=full_path
+    print(f"Config file: {full_path}")
+    cfg=ConfigurationHelper().load_config(config_like=config_like)
 
     try:           
-        init_logging()
+        init_logging(cfg=cfg)#this is an example method on how to configure logs. You can do whatever you want. STMGR will log to default logger.
         logger = logging.getLogger(__name__)
-        logger.info('Starting run.py demo.')
+        logger.info('Starting run.py demo entrypoint.')
         pl=TMgr(config_like=config_like)
         
         pl.monitor_and_execute()

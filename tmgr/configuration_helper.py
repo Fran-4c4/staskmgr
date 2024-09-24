@@ -32,7 +32,7 @@ class ConfigurationHelper():
     def load_parse_cfg_file(self,config_like):
         config_data=None
         if isinstance(config_like, str) and os.path.exists(config_like):
-            config_data = ConfigurationHelper().load_file(file_path=config_like)               
+            config_data = self.load_file(file_path=config_like)               
         elif isinstance(config_like, dict):
             config_data = config_like
         else:
