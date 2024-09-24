@@ -267,6 +267,9 @@ class TMgr():
 
                 
                 launchType=task_config["task_handler"].get("launchType","")
+                if launchType=="":
+                    # check in root
+                    launchType=task_config.get("launchType","")
                 if not "task_definition" in task_config:
                     task_config["task_definition"]={}
                 task_config["task_definition"]["task_id_task"]=str(id_task)
