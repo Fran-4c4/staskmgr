@@ -9,6 +9,7 @@ import time
 import argparse
 from typing import Dict
 
+import tmgr
 from tmgr.model.config import Config
 
 from .enums.lit_enum import LitEnum
@@ -51,7 +52,8 @@ class TMgr():
             max_wait_count (int): max wait time. This is useful when you create a manager in a docker and you want to wait to reutilize the hardware. Task manager will wait this time by the number of counts.
         """
         self.log = logging.getLogger(__name__)
-        self.log.info(f"Starting STMR for {taskmgr_name}")  
+        self.version= tmgr.__version__
+        self.log.info(f"Starting STMR for {taskmgr_name} {self.version}")  
         self.cfg=Config()
         self.cfg.taskmgr_name=taskmgr_name
         self.configuration_file=config_like  
