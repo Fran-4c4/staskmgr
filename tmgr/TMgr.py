@@ -278,6 +278,10 @@ class TMgr():
                     task_ret=tl.run_task()
                     #-----------END TASK    --------------------
                     
+                    if isinstance(task_ret,dict) is False:
+                        task_ret={} 
+                        #task handler is not a dict with response data but no error was raised so for us is ok
+                    
                     if task_ret.get("status","").upper()=="ERROR":
                         msg=task_ret['message']
                         task_db.update_status(id=id_task,new_status=TaskStatusEnum.ERROR,output=msg) 

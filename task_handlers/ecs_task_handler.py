@@ -76,9 +76,9 @@ class ECSTaskHandler(TaskHandlerInterface):
         
         self.config()
         if self.launchType == 'FARGATE':
-            self.run_fargate_task()
+            return self.run_fargate_task()
         elif self.launchType == 'EC2':
-            self.run_ec2_task()            
+            return self.run_ec2_task()            
         
 
     def run_ec2_task(self, **kwargs)->bool: 
