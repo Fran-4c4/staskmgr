@@ -4,7 +4,8 @@ import os
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional
 
-from tmgr.enums.lit_enum import LitEnum
+
+from tmgr.enums import CFGOrderEnum,lit_enum
 
 @dataclass
 class Config:
@@ -13,11 +14,12 @@ class Config:
     """
     taskmgr_name: str = field(default="", metadata={"description": "Task manager name"})   
     DDBB_CONFIG:Dict = field(default_factory=dict, metadata={"description": "DDBB configuration"})
+    filter_task_key: str = field(default=CFGOrderEnum.CFG_DB, metadata={"description": "List of task types available"})
     task_types: List[str] = field(default_factory=list, metadata={"description": "List of task types available"})
     max_wait_count:int=field(default=2, metadata={"description": "Time in seconds to wait"})
     monitor_wait_time_seconds: int = field(default=10, metadata={"description": "Monitor wait time"})
     wait_between_tasks_seconds: int = field(default=5, metadata={"description": "wait between tasks seconds"})
-    task_definition_search_type: int = field(default=LitEnum.DB_CFG, metadata={"description": "task_definition_search_type"})
+    task_definition_search_type: int = field(default=CFGOrderEnum.DB_CFG, metadata={"description": "task_definition_search_type"})
     check_configuration_interval: int = field(default=-1, metadata={"description": "Check configuration interval. If -1 then check is disabled."})
     log_level: int = field(default=logging.DEBUG, metadata={"description": "Log level for tmgr package."})
     test_mode: bool = field(default=False, metadata={"description": "Active debug mode"})

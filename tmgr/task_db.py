@@ -148,7 +148,7 @@ class TaskDB(DBBase):
         query_res= session.execute(sqltext(sql),params=params).fetchone() 
         return query_res
 
-    def get_pending_task(self,status_list:list=None, task_types:list=None, limit=1):
+    def get_pending_task(self,status_list:list=None, task_types:list=None, limit=1,filter_task_key=None):
         """return pending task
 
         Args:
@@ -175,6 +175,10 @@ class TaskDB(DBBase):
             params = {'status': status_list
                           ,"status_dep":str(TaskStatusEnum.FINISHED)
                           }     
+            
+            if filter_task_key is not None:
+                sql+= """ and id_tmgr ilike  :id_tmgr """    
+                params["id_tmgr"]=filter_task_key             
                               
             if task_types is not None:
                 task_types = [str(value) for value in task_types]

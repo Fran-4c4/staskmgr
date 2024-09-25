@@ -10,9 +10,10 @@ import argparse
 from typing import Dict
 
 import tmgr
+from tmgr.enums.lit_enum import FilterTaskKeyEnum
 from tmgr.model.config import Config
 
-from .enums.lit_enum import LitEnum
+from .enums import CFGOrderEnum, LitEnum
 from .periodic_task import PeriodicTask
 
 from .global_config import gconfig
@@ -100,6 +101,7 @@ class TMgr():
         cfgh=ConfigurationHelper() 
         self.app_config= cfgh.load_config(config_like= config_like)  
         self.cfg.load_parse_cfg_file(config_like=self.app_config)
+        self.cfg.taskmgr_name=self.app_config["manager_name"]
         #INIT DATABASE
         DBMgr().init_database(self.cfg.DDBB_CONFIG)
         self.log.info(f"Loading initial DDBB configuration for {self.cfg.taskmgr_name}") 
@@ -126,6 +128,8 @@ class TMgr():
         cfg:Dict=TaskDB().get_task_mgr_configuration(self.app_config["manager_name"]).config
         self.app_config["mgr_config"]=cfg
         self.cfg.task_types=cfg.get("task_types",[])
+        
+        self.cfg.filter_task_key=str(cfg.get("filter_task_key",FilterTaskKeyEnum.SELF_KEY) ).upper()
         
         old_max_wait_count=self.cfg.max_wait_count
         self.cfg.max_wait_count=cfg.get("max_wait_count",10) 
@@ -194,7 +198,15 @@ class TMgr():
         session = db.getsession()
         try:
             task_types=self.cfg.task_types
-            task=TaskDB(scoped_session=session).get_pending_task(task_types=task_types) 
+            filter_task_key=None
+            if self.cfg.filter_task_key==FilterTaskKeyEnum.SELF_KEY:
+                filter_task_key=self.cfg.taskmgr_name
+            elif self.cfg.filter_task_key==FilterTaskKeyEnum.ANY_KEY:
+                filter_task_key=None   
+            else:               
+                filter_task_key=self.cfg.filter_task_key #filter by the key passed
+                
+            task=TaskDB(scoped_session=session).get_pending_task(task_types=task_types,filter_task_key=filter_task_key) 
             return task
         except Exception:
             raise 
@@ -210,15 +222,15 @@ class TMgr():
         db=DBBase()
         session = db.getsession()
         try:
-            search_type=self.mgr_config.get(LitEnum.task_definition_search_type,LitEnum.CFG_DB)
+            search_type=self.mgr_config.get(LitEnum.task_definition_search_type,CFGOrderEnum.CFG_DB)
             task=None
-            if search_type in [LitEnum.CFG_ONLY, LitEnum.CFG_DB] :
+            if search_type in [CFGOrderEnum.CFG_ONLY, CFGOrderEnum.CFG_DB] :
                 task=self.task_definitions[task_definition]
-                if task is None and search_type in [LitEnum.CFG_DB] :
+                if task is None and search_type in [CFGOrderEnum.CFG_DB] :
                     task=TaskDB(scoped_session=session).get_task_definition(task_type=task_definition) 
-            elif search_type in [LitEnum.DB_ONLY,LitEnum.DB_CFG]:
+            elif search_type in [CFGOrderEnum.DB_ONLY,CFGOrderEnum.DB_CFG]:
                 task=TaskDB(scoped_session=session).get_task_definition(task_type=task_definition)   
-                if task is None and search_type in [LitEnum.DB_CFG] :
+                if task is None and search_type in [CFGOrderEnum.DB_CFG] :
                     task=self.task_definitions[task_definition]
 
             if task:
@@ -280,7 +292,7 @@ class TMgr():
                     tl=TaskLoader(task_config)
                     #-----------START TASK  --------------------
                     
-                    task_ret=tl.run_task()
+                    # task_ret=tl.run_task()
                     #-----------END TASK    --------------------
                     
                     if isinstance(task_ret,dict) is False:
@@ -292,12 +304,14 @@ class TMgr():
                         task_db.update_status(id=id_task,new_status=TaskStatusEnum.ERROR,output=msg) 
                         log.error(f"Task {id_task} launched with errors: {msg}") 
                     else:
+                        log.debug(f"Task {id_task} launchType:{launchType.upper()}.")    
                         if launchType.upper()==LitEnum.LAUNCHTYPE_INTERNAL: 
                             #We set task_next_status to FINISHED if it is not informed.
                             task_next_status=task_config["task_handler"].get("task_next_status",TaskStatusEnum.FINISHED) 
                             msg=task_ret.get('message',None)
                             progress=100                                                        
-                            task_db.update_status(id=id_task,new_status=task_next_status,output=msg,progress=progress) 
+                            task_db.update_status(id=id_task,new_status=task_next_status,output=msg,progress=progress)
+                            log.debug(f"Task {id_task} task_next_status:{task_next_status}. updated")  
                         log.info(f"Task {id_task} finished.")                     
                     
                     
@@ -319,8 +333,6 @@ class TMgr():
         except Exception as ex:
             self.log.error(f"Task {id_task} raised error {str(ex)}")
 
-
-    
     def monitor_and_execute(self):
         """check and execute pending tasks
         """                
