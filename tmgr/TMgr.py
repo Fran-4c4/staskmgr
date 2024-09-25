@@ -266,7 +266,7 @@ class TMgr():
         task_db=TaskDB(scoped_session=session)       
         try:           
             #update task to CHECKING
-            resp=task_db.update_status(id=id_task,new_status=TaskStatusEnum.CHECKING,prev_status=TaskStatusEnum.PENDING,output="" )
+            resp=task_db.update_status(id=id_task,new_status=TaskStatusEnum.CHECKING,prev_status=TaskStatusEnum.PENDING,progress=0,output="" )
             if resp["status"]==TaskStatusEnum.CHECKING:   
                 launchType:str=""  
                 task_obj=self.get_task(id_task)
@@ -287,7 +287,7 @@ class TMgr():
                     task_config["task_definition"]={}
                 task_config["task_definition"]["task_id_task"]=str(id_task)
                 
-                resp=task_db.update_status(id=id_task,new_status=TaskStatusEnum.WAIT_EXECUTION )
+                resp=task_db.update_status(id=id_task,new_status=TaskStatusEnum.WAIT_EXECUTION,progress=0,output="" )
                 tl=None
                 try:
                     tl=TaskLoader(task_config)
