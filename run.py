@@ -85,21 +85,12 @@ def init_logging(cfg:Dict):
     if use_db_handler:
         try:
             # Configurar el DSN para PostgreSQL
-            dbcfg = cfg.get('DDBB_CONFIG')
-            user = dbcfg.get('user')
-            password = dbcfg.get('password')
-            host = str(dbcfg.get('host'))
-            port = str(dbcfg.get('port'))
-            db_name = str(dbcfg.get('db'))
-
-            dsn = f"dbname={db_name} user={user} password={password} host={host} port={port}"
-
-            pg_handler = PostgreSQLHandler(
-                dsn,
-                table_name=log_cfg.get("TMGR_LOG_FILE", "tmgr_logs") ,
-            )    
-            pg_handler.setLevel(db_handler_cfg.get("LOG_LEVEL", logging.DEBUG))
-            pg_handler.setFormatter(formatter)
+            dbcfg = cfg.get('DDBB_CONFIG') 
+                       
+            dbcfg["LOG_LEVEL"]=db_handler_cfg.get("LOG_LEVEL", logging.DEBUG)
+            dbcfg["DEFAULT_LOG_FORMATTER"]=formatter
+            dbcfg["TMGR_LOG_TABLE"]=db_handler_cfg.get("TMGR_LOG_TABLE", "tmgr_logs")
+            pg_handler = PostgreSQLHandler(config=dbcfg) 
             logger.addHandler(pg_handler)
 
         except Exception as ex:

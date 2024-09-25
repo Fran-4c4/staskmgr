@@ -13,11 +13,11 @@
   "logging": {
     "DEFAULT_LOG_LEVEL": 10,
     "DEFAULT_LOG_FORMATTER": "'%(asctime)s -  %(levelname)s - %(name)s-%(funcName)s.%(lineno)d - %(message)s - origin: %(origin)s'",
-    "LOGFILE": "log_tmgr.log",
-    "TMGR_LOG_FILE": "tmgr_logs",
+    "LOGFILE": "log_tmgr.log",    
     "DB_HANDLER": {
       "USE_DB_HANDLER": true,
-      "LOG_LEVEL": 10
+      "LOG_LEVEL": 10,
+      "TMGR_LOG_TABLE": "tmgr_logs"
     }
   },
   "task_handlers": {

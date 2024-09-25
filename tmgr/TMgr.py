@@ -144,6 +144,7 @@ class TMgr():
         #reset data if needed
         if old_log_level!=self.cfg.log_level:
             self.log.setLevel(level=self.cfg.log_level)
+            self.log.info(f"Log New level set {self.cfg.taskmgr_name}")
             
         if old_max_wait_count!=self.cfg.max_wait_count:
             with self.lock:
@@ -257,7 +258,7 @@ class TMgr():
         Returns:
             _type_: _description_
         """      
-        log=self.log
+        log=logging.getLogger(__name__)
         log.info(f"Starting task execution: {id_task}")   
         task_ret=0
         db=DBBase()
@@ -292,7 +293,7 @@ class TMgr():
                     tl=TaskLoader(task_config)
                     #-----------START TASK  --------------------
                     
-                    # task_ret=tl.run_task()
+                    task_ret=tl.run_task()
                     #-----------END TASK    --------------------
                     
                     if isinstance(task_ret,dict) is False:
@@ -302,16 +303,16 @@ class TMgr():
                     if task_ret.get("status","").upper()=="ERROR":
                         msg=task_ret['message']
                         task_db.update_status(id=id_task,new_status=TaskStatusEnum.ERROR,output=msg) 
-                        log.error(f"Task {id_task} launched with errors: {msg}") 
+                        log.error(f"Task {task_obj.type} {id_task} launched with errors: {msg}") 
                     else:
-                        log.debug(f"Task {id_task} launchType:{launchType.upper()}.")    
+                        log.debug(f"Task {task_obj.type} {id_task}  launchType:{launchType.upper()}.")    
                         if launchType.upper()==LitEnum.LAUNCHTYPE_INTERNAL: 
                             #We set task_next_status to FINISHED if it is not informed.
                             task_next_status=task_config["task_handler"].get("task_next_status",TaskStatusEnum.FINISHED) 
                             msg=task_ret.get('message',None)
                             progress=100                                                        
                             task_db.update_status(id=id_task,new_status=task_next_status,output=msg,progress=progress)
-                            log.debug(f"Task {id_task} task_next_status:{task_next_status}. updated")  
+                            log.debug(f"Task {task_obj.type} {id_task} task_next_status:{task_next_status}. updated")  
                         log.info(f"Task {id_task} finished.")                     
                     
                     
