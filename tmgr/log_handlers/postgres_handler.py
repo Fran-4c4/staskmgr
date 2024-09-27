@@ -48,7 +48,8 @@ class PostgreSQLHandler(logging.Handler):
         timestamp=time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(record.created))
         # timestamp = datetime.strptime(record.created, '%Y-%m-%d %H:%M:%S,%f').strftime('%Y-%m-%d %H:%M:%S')
         origin=getattr(record, 'origin', "")
-        params=(timestamp, record.levelname, record.name, record.getMessage(),origin)
+        call_path=f"{record.name}.{record.funcName}:{record.lineno}"
+        params=(timestamp, record.levelname, call_path, record.getMessage(),origin)
         self.cursor.execute(self.insert_query,params )
         self.conn.commit()
 
