@@ -18,7 +18,7 @@ class LogCustomFormatter(logging.Formatter):
         if record.exc_info:
             message = self.formatException(record)
         else:
-            message = super().format(record)
+            message = record.getMessage()
         return f"{record.asctime} - {record.levelname} - {self._getLoggerName(record)}{record.name}.{record.funcName}:{record.lineno} - {message}"
 
     def _getLoggerName(self, record):
