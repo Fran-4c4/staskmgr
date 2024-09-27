@@ -1,11 +1,7 @@
-'''
-- author: angel.velazquez@geoaitech.com angel.velazquez@geoaitech.com
-'''
-
 import logging
-from typing import Any, List
+from typing import List
 from sqlalchemy.sql import text as sqltext
-from sqlalchemy.exc import SQLAlchemyError, IntegrityError
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import and_
 
 
@@ -16,8 +12,18 @@ from .enums.task_status_enum import TaskStatusEnum
 
 
 class TaskDB(DBBase):
+    """class to manage task queries to DDBB
+
+    Args:
+        DBBase (DBBase): Base class for DB handlers
+    """    
 
     def __init__(self,scoped_session=None):
+        """init
+
+        Args:
+            scoped_session (Session, optional): Session shared. Defaults to None.
+        """        
         super().__init__(scoped_session)
         self.log= logging.getLogger(__name__)
 
@@ -79,7 +85,7 @@ class TaskDB(DBBase):
             oEx: Exception
 
         Returns:
-            _type_: TaskDep
+            TaskDep: TaskDep
         """        
         session = self.getsession()
         obj = TaskDep(
@@ -119,13 +125,13 @@ class TaskDB(DBBase):
         """        
         session = self.getsession()
         obj:Task = session.query(Task).filter(Task.id==str(id)).first()
-        task = session.query(Task).filter(
-            and_(
-                Task.id == str(id),
-                Task.status == 'active',  
-                Task.priority > 3        # Another example filter condition
-            )
-        ).first()
+        # task = session.query(Task).filter(
+        #     and_(
+        #         Task.id == str(id),
+        #         Task.status == 'active',  
+        #         Task.priority > 3        # Another example filter condition
+        #     )
+        # ).first()
         return obj    
 
     def get_task_definition(self,task_type):
@@ -153,13 +159,16 @@ class TaskDB(DBBase):
 
         Args:
             status_list (list, optional): list of types to get. Defaults to None and then it will look for TaskStatusEnum.PENDING.
+            task_types (list, optional): list of tasks types to search. Defaults to None.
+            limit (int, optional): limit of task to retrieve. Defaults to 1.
+            filter_task_key (str, optional): task manager key used to filter when the same table is used by diferent managers. Defaults to None.
 
         Raises:
             oEx: exception
 
         Returns:
             task: task row object
-        """ 
+        """
         session = self.getsession()
         try:
             if status_list is None:
@@ -261,20 +270,32 @@ class TaskDB(DBBase):
         return dependencies 
         
 
-    def reset_status(self):
+    def reset_status(self,filter_task_key=None):
+        """reset status for tasks when the taskmanager restart
+
+        Args:
+            filter_task_key (str, optional): task manager key used to filter when the same table is used by diferent managers. Defaults to None.
+        Raises:
+            Exception: _description_
+        """        
         session = self.getsession()
         try:
             sql = """UPDATE tmgr_tasks
                     SET status = :p_new_status
                     , output= :p_output
-                    where status ILIKE :p_check_status
+                    where status ILIKE :p_check_status                                       
             """
-            parameters = { 'p_check_status':str(TaskStatusEnum.CHECKING)
+            
+            params = { 'p_check_status':str(TaskStatusEnum.CHECKING)
                           ,'p_new_status': str(TaskStatusEnum.PENDING)
                            ,'p_output': 'Reset to pending by system reload.'
                           }    
+            if filter_task_key is not None:
+                sql+= """ and id_tmgr ilike  :id_tmgr """    
+                params["id_tmgr"]=filter_task_key
+                
             sqltext_query = sqltext(sql)
-            result = session.execute(sqltext_query, parameters)
+            result = session.execute(sqltext_query, params)
             session.commit()
             self.log.info("Reset all tasks in Checking status to pending.")
         except SQLAlchemyError as e:
@@ -288,6 +309,20 @@ class TaskDB(DBBase):
             raise
 
     def update_status(self, id: str, new_status: TaskStatusEnum, prev_status=None, output=None, **kwargs):
+        """update task status
+
+        Args:
+            id (str): task id
+            new_status (TaskStatusEnum): new status to set.
+            prev_status (_type_, optional): filter by this status to update. Defaults to None.
+            output (_type_, optional): Any message to set during update. Defaults to None.
+
+        Raises:
+            Exception: _description_
+
+        Returns:
+            _type_: _description_
+        """        
         session = self.getsession()
         try:
             id = str(id)
@@ -334,47 +369,6 @@ class TaskDB(DBBase):
 
         except Exception as e:
             raise
-
-
-        
-    def modify(self, task):
-        """not used
-
-        Args:
-            task (_type_): _description_
-
-        Raises:
-            oEx: _description_
-
-        Returns:
-            _type_: _description_
-        """        
-        session = self.getsession()
-        try:
-            _task = session.query(Task).filter(Task.id == task['id']).one()
-            if 'status' in task and _task.status!=task['status']:
-                _task.status = task['status']
-            if 'output' in task:
-                _task.output = task['output']
-            if 'time_end' in task:
-                _task.time_end = task['time_end']
-            if 'time_start' in task:
-                _task.time_start = task['time_start']
-            if 'progress' in task:
-                _task.progress = task['progress']
-            if 'type' in task:
-                _task.type = task['type']
-            if 'parameters' in task:
-                _task.parameters = task['parameters']
-            session.commit()
-            return _task
-        except Exception as oEx:
-            raise oEx
-        finally:
-            # self.closeSession()
-            pass
-        
-    from sqlalchemy import text
 
     def get_task_flow(self, id_task):
         # Define the raw SQL query with a parameter placeholder

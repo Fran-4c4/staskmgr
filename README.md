@@ -53,7 +53,8 @@ Install using pip in your project using the next command and changing x.x.x vers
 pip install "path_to_dist/dist/Simple_Task_Manager-x.x.x-py3-none-any.whl" 
 ```
 
-
+## Sphinx documentation
+- There is a minimal documentation generated from source. See  [Documentation](./docs/sphinx.md)
 
 
 # License

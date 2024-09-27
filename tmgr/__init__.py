@@ -1,4 +1,6 @@
-"""Simple task manager"""
+"""Simple task manager
+   tmgr module 
+"""
 __name__ = 'simple_task_manager'
 __version__     = '1.5.22'
 __author__      = 'Francisco R. Moreno Santana'

@@ -1,15 +1,6 @@
-import hashlib
 import logging
-import datetime as dt
-from datetime import datetime, timezone
-import json
-import os
-from typing import Any, Dict
-from sqlalchemy import func
-from sqlalchemy.orm.attributes import flag_modified
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.exc import SQLAlchemyError, IntegrityError
-from sqlalchemy.orm.session import Session
+from sqlalchemy.orm import Session,sessionmaker
+from sqlalchemy.engine import Engine
 
 
 class DBBase(object):
@@ -22,12 +13,10 @@ class DBBase(object):
         DBBase: DBBase
     """
     # global session shared between instances
-    gDbEngine = None
-    gDBSession = None
-    gDbEngineLog = None
-    gDBSessionLog = None
-    session = None
-    scoped_session = None
+    gDbEngine:Engine = None
+    gDBSession:sessionmaker = None
+    session:Session = None
+    scoped_session:Session = None
     log=None
 
     def __init__(self, scoped_session: Session = None):

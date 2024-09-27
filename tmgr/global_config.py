@@ -2,6 +2,8 @@
 
  """
 class GlobalConfig:
+    """Generic class to store information
+    """    
     app_config = {
         "config_file": "appconfig.json"
     }

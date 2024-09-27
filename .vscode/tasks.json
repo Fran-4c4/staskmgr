@@ -14,7 +14,21 @@
             },
             "problemMatcher": [],
             "detail": "Automate package build and clean process"
-        },     
+        }, 
+        {
+            "label": "Make documentation",
+            "type": "shell",
+            "command": "${workspaceFolder}/docs_sphinx/make",
+            "args": [
+                "html"
+               ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": [],
+            "detail": "Automate documentation build in html"
+        },             
         {
             "label": "Print Workspace Folder",
             "type": "shell",
