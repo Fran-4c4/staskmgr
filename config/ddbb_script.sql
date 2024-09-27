@@ -79,9 +79,8 @@ CREATE TABLE public.tmgr_logs (
 --EXAMPLE configuration
 INSERT INTO public.tmgr_config
 (id, "name", config, description)
-VALUES('MAIN_MGR', 'MAIN_MGR', '{"task_types": ["TEST_MGR"], "max_wait_count": 2, "monitor_wait_time_seconds": 10, "wait_between_tasks_seconds": 5, "task_definition_search_type": "DB_CFG", "check_configuration_interval": 10}'::jsonb, 'Main manager for general tasks');
-
+VALUES('MAIN_MGR', 'MAIN_MGR', '{"log_level": 20, "task_types": ["TEST_MGR"], "max_wait_count": 2, "filter_task_key": "SELF_KEY", "monitor_wait_time_seconds": 10, "wait_between_tasks_seconds": 5, "task_definition_search_type": "DB_CFG", "check_configuration_interval": 20}'::jsonb, 'Main manager for general tasks');
 --EXAMPLE TASK
 INSERT INTO public.tmgr_task_definitions
 (id, "name", active, config)
-VALUES('TEST_MGR', 'TEST_MGR', true, '{"task_handler": {"name": "TestTaskHandler", "path": "task_handlers", "class": "TestTaskHandler", "module": "test_task_handler", "launchType": "INTERNAL", "task_next_status": "FINISHED"}}'::jsonb);
+VALUES('TEST_MGR', 'TEST_MGR', true, '{"task_handler": {"name": "TestTaskHandler", "path": "task_handlers", "class": "TestTaskHandler", "module": "test_task_handler", "launchType": "INTERNAL", "thread_type": "THREAD", "task_max_active": 10, "task_next_status": "FINISHED"}}'::jsonb);

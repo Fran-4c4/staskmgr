@@ -79,9 +79,9 @@ if __name__ == '__main__':
     
     
     opcion=-1
-    while opcion!='0':
-        version = get_version()
+    while opcion!='0':        
         opcion=ask()
+        version = get_version()
         if opcion=='1':          
             delete_old()
             build()                
