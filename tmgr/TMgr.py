@@ -3,6 +3,7 @@ import logging.handlers
 import threading
 import time
 from typing import Dict
+from datetime import datetime, timezone
 
 import tmgr
 from tmgr.enums.lit_enum import FilterTaskKeyEnum
@@ -102,7 +103,7 @@ class TMgr():
         self.log.info(f"Loading initial DDBB configuration for {self.cfg.taskmgr_name}") 
         self.config_tmgr_from_ddbb() 
          
-        TaskDB().reset_status()     
+        TaskDB().reset_status(filter_task_key=self.cfg.filter_task_key)     
         self._load_task_definitions()
         
         if self.cfg.check_configuration_interval>0:
@@ -278,11 +279,12 @@ class TMgr():
                 if launchType=="":
                     # check in root
                     launchType=task_config.get("launchType","")
+                launchType=launchType.upper()    
                 if not "task_definition" in task_config:
                     task_config["task_definition"]={}
                 task_config["task_definition"]["task_id_task"]=str(id_task)
                 
-                resp=task_db.update_status(id=id_task,new_status=TaskStatusEnum.WAIT_EXECUTION,progress=0,output="" )
+                resp=task_db.update_status(id=id_task,new_status=TaskStatusEnum.WAIT_EXECUTION,progress=0,output="",time_start="NOW()" )
                 tl=None
                 try:
                     tl=TaskLoader(task_config)
@@ -300,13 +302,13 @@ class TMgr():
                         task_db.update_status(id=id_task,new_status=TaskStatusEnum.ERROR,output=msg) 
                         log.error(f"Task {task_obj.type} {id_task} launched with errors: {msg}") 
                     else:
-                        log.debug(f"Task {task_obj.type} {id_task}  launchType:{launchType.upper()}.")    
-                        if launchType.upper()==LitEnum.LAUNCHTYPE_INTERNAL: 
+                        log.debug(f"Task {task_obj.type} {id_task}  launchType:{launchType}.")    
+                        if launchType==LitEnum.LAUNCHTYPE_INTERNAL: 
                             #We set task_next_status to FINISHED if it is not informed.
                             task_next_status=task_config["task_handler"].get("task_next_status",TaskStatusEnum.FINISHED) 
                             msg=task_ret.get('message',None)
                             progress=100                                                        
-                            task_db.update_status(id=id_task,new_status=task_next_status,output=msg,progress=progress)
+                            task_db.update_status(id=id_task,new_status=task_next_status,output=msg,progress=progress,time_end="NOW()")
                             log.debug(f"Task {task_obj.type} {id_task} task_next_status:{task_next_status}. updated")  
                         log.info(f"Task {id_task} finished.")                     
                     

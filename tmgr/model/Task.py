@@ -33,7 +33,11 @@ class Task(BASE_ORM):
     time_end = Column(TIMESTAMP, nullable=True)
     created_at = Column(TIMESTAMP(timezone=True), default=func.now(), nullable=True)
     priority = Column(SmallInteger, default=0, nullable=True)
-
+    modify_date = Column(TIMESTAMP, nullable=True)
+    scheduled_date = Column(TIMESTAMP, nullable=True)
+    recurrence_interval = Column(TIMESTAMP, nullable=True)
+    id_user = Column(Text, nullable=True)
+    
 
     # Relations, we don´t force because definitions can exist in config file
     # task_definition = relationship("TmgrTaskDefinitions", back_populates="tasks")

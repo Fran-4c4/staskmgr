@@ -336,10 +336,9 @@ class TaskDB(DBBase):
                 sql += ", output = :output"
                 parameters['output'] = str(output)
 
-            progress = kwargs.get("progress", None)
-            if progress is not None:
-                sql += ", progress = :progress"
-                parameters['progress'] = progress
+            sql=self._add_sql_param(key="progress",sql=sql,parameters=parameters,**kwargs)    
+            sql=self._add_sql_param(key="time_start",sql=sql,parameters=parameters,**kwargs)
+            sql=self._add_sql_param(key="time_end",sql=sql,parameters=parameters,**kwargs)                  
 
             sql += " WHERE id = :id"
             parameters['id'] = id
@@ -369,6 +368,24 @@ class TaskDB(DBBase):
 
         except Exception as e:
             raise
+        
+    def _add_sql_param(self,key:str,sql:str,parameters:dict,**kwargs):
+        """helper method to add parameters to query
+
+        Args:
+            key (str): key
+            sql (str): sql to modify
+            parameters (dict): dict parameters to add parametes if needed
+        Keyword Arguments:
+            - **additional_params**: dict of additional parameters to be added to the SQL query. Defaults to {}
+        Returns:
+            str: sql modified
+        """        
+        value = kwargs.get(key, None)
+        if value is not None:
+            sql += f" , {key} = :{key} "
+            parameters[key] = value 
+        return sql
 
     def get_task_flow(self, id_task):
         # Define the raw SQL query with a parameter placeholder
@@ -401,3 +418,106 @@ class TaskDB(DBBase):
         
         # Fetch all results and return them
         return result.fetchall()
+
+    def modify(self, task_like_obj)->Task:
+        """modify task data.
+
+        Args:
+            task_like_obj (dict|Task): Data for modification. In order to modify only some fields normally is expecting dict object. If you pass a Task object all the fields must be filled.
+
+        Raises:
+            oex: exception
+
+        Returns:
+            Task: Task object modified
+        """        
+        session =None
+        try:
+            if isinstance(task_like_obj, dict):
+                pass
+            elif isinstance(task_like_obj, object):  # Nota: Todos los objetos en Python son instancias de 'object', por lo que esto siempre será True para instancias de clases
+                task_dict=self._task_obj_to_dict(task_like_obj)
+                
+            session =self.getsession()    
+            _task = session.query(Task).filter(Task.id == task_dict['id']).one() #raise error if the task doesn´t exists
+            if 'type' in task_dict:
+                _task.type = task_dict['type']
+            if 'parameters' in task_dict:
+                _task.parameters = task_dict['parameters']
+            if 'id_user' in task_dict:
+                _task.id_user = task_dict['id_user']
+            if 'status' in task_dict and _task.status!=task_dict['status']:
+                _task.status = task_dict['status']
+            if 'output' in task_dict:
+                _task.output = task_dict['output']
+            if 'time_end' in task_dict:
+                _task.time_end = task_dict['time_end']
+            if 'time_start' in task_dict:
+                _task.time_start = task_dict['time_start']
+            if 'progress' in task_dict:
+                _task.progress = task_dict['progress']
+            if 'priority' in task_dict:
+                _task.output = task_dict['priority']
+            if 'modify_date' in task_dict:
+                _task.time_end = task_dict['modify_date']
+            if 'scheduled_date' in task_dict:
+                _task.time_start = task_dict['scheduled_date']
+            if 'recurrence_interval' in task_dict:
+                _task.progress = task_dict['recurrence_interval']   
+            if 'id_tmgr' in task_dict:
+                _task.time_start = task_dict['id_tmgr']
+            if 'created_at' in task_dict:
+                _task.progress = task_dict['created_at']                                
+                
+            return _task
+        except Exception as oex:
+            raise oex
+
+    def get_value(self,container, key, default=None):
+        # Si es un diccionario, intenta obtener el valor con get()
+        if isinstance(container, dict):
+            return container.get(key, default)
+        
+        # Si es un objeto, intenta acceder al atributo
+        elif hasattr(container, key):
+            return getattr(container, key, default)
+        
+        # Si no es ni diccionario ni objeto, retorna el valor por defecto
+        return default
+    
+    def _task_obj_to_dict(self,task_like_obj)-> dict:
+        """Convert obj in dictionary
+
+        Args:
+            task_like_obj (Task|dict): Data for conversion.
+
+        Returns:
+            dict: Task dictionary
+        """        
+        obj=None
+        if isinstance(task_like_obj, dict):
+                return task_like_obj
+        elif isinstance(task_like_obj, object):  # Nota: Todos los objetos en Python son instancias de 'object', por lo que esto siempre será True para instancias de clases
+            obj={}
+            obj['type']         =task_like_obj.type
+            obj['parameters']   =task_like_obj.parameters
+            
+            obj['status']       = task_like_obj.status
+            obj['output']       =task_like_obj.output  
+            obj['time_end']     =task_like_obj.time_end 
+            obj['time_start']   =task_like_obj.time_start
+            obj['progress']     =task_like_obj.progress
+            obj['priority']     =task_like_obj.priority
+            obj['modify_date']     =task_like_obj.modify_date
+            obj['scheduled_date']  =task_like_obj.scheduled_date
+            obj['recurrence_interval']  =task_like_obj.recurrence_interval
+            
+            # others
+            obj['id_tmgr']     =task_like_obj.id_tmgr
+            obj['id_user']      =task_like_obj.id_user
+            obj['created_at']     =task_like_obj.id_tmgr
+            return obj
+            
+
+
+
