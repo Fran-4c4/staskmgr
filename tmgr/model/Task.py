@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 from typing import Type
 from sqlalchemy.ext.declarative import DeclarativeMeta
-from sqlalchemy.sql import func
+from sqlalchemy import func
 from sqlalchemy import Column, String, Integer,  TIMESTAMP, Text, JSON, SmallInteger
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
@@ -33,7 +33,7 @@ class Task(BASE_ORM):
     time_end = Column(TIMESTAMP, nullable=True)
     created_at = Column(TIMESTAMP(timezone=True), default=func.now(), nullable=True)
     priority = Column(SmallInteger, default=0, nullable=True)
-    modify_date = Column(TIMESTAMP, nullable=True)
+    modify_date = Column(TIMESTAMP, default=func.now(),nullable=True)
     scheduled_date = Column(TIMESTAMP, nullable=True)
     recurrence_interval = Column(TIMESTAMP, nullable=True)
     id_user = Column(Text, nullable=True)

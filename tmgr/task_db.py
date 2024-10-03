@@ -51,12 +51,15 @@ class TaskDB(DBBase):
         return obj
 
 
-    def add(self, type, parameters):
-        """Add a task to DDBB
+    def add(self, type, parameters, status=TaskStatusEnum.PENDING,id_user:str=None,id_tmgr="MAIN"):
+        """Add a task to DDBB with minimal data
 
         Args:
             type (str): task type
             parameters (str|dict): dict or string with parameters for task
+            status (_type_, optional): _description_. Defaults to TaskStatusEnum.PENDING.
+            id_user (str, optional): id_user. Defaults to None.
+            id_tmgr (str, optional): id_tmgr. Defaults to "MAIN".
 
         Raises:
             oEx: _description_
@@ -66,9 +69,11 @@ class TaskDB(DBBase):
         """        
         session = self.getsession()
         obj = Task(
-            type       = type,
-            parameters = parameters,
-            status     = str(TaskStatusEnum.PENDING)
+            id_tmgr     =id_tmgr,
+            type        = type,
+            parameters  = parameters,
+            status      = str(status),
+            id_user     = id_user
             )
         session.add(obj)
         return obj
