@@ -15,7 +15,7 @@ class TaskDep(BASE_ORM):
     """  
     __tablename__ = 'tmgr_task_dep'
 
-    id_task = Column(ForeignKey('tmgr_task.id', ondelete='CASCADE', onupdate='CASCADE'), primary_key=True, nullable=False, index=True)
-    id_task_dep = Column(ForeignKey('tmgr_task.id', ondelete='CASCADE', onupdate='CASCADE'), primary_key=True, nullable=False, index=True)
+    id_task = Column(ForeignKey('tmgr_tasks.id', ondelete='CASCADE', onupdate='CASCADE'), primary_key=True, nullable=False, index=True)
+    id_task_dep = Column(ForeignKey('tmgr_tasks.id', ondelete='CASCADE', onupdate='CASCADE'), primary_key=True, nullable=False, index=True)
 
     
