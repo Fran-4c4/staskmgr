@@ -143,7 +143,7 @@ class ECSTaskHandler(TaskHandlerInterface):
                 self.log.info(f"Instance launched. {log_resp}")
                 return True
             else:
-                raise Exception("There is an error throwing the task")
+                raise Exception(f"There is an error throwing the task. {str(response)}" )
         else:
             raise Exception("There is an error throwing the task. Task client is not loaded ")
         
