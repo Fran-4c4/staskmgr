@@ -156,7 +156,7 @@ class TMgr():
         
         
     def _load_task_definitions(self): 
-        """load task handlers from config file
+        """load task definitions to execute task from config file
         """           
         self.task_definitions=self.app_config.get("task_handlers",{})
         count=0
@@ -210,11 +210,16 @@ class TMgr():
         finally:
             db.closeSession()
             
-    def task_definition_fetch(self,task_definition):
+    def task_definition_fetch(self,task_definition_type):
         """return task definition
+        Args:
+            task_definition_type (str): code of the task definition
+
+        Raises:
+            Exception: Exception
 
         Returns:
-            Any: task definition row
+             Task: task definition 
         """        
         db=DBBase()
         session = db.getsession()
@@ -222,13 +227,13 @@ class TMgr():
             search_type=self.mgr_config.get(LitEnum.task_definition_search_type,CFGOrderEnum.CFG_DB)
             task=None
             if search_type in [CFGOrderEnum.CFG_ONLY, CFGOrderEnum.CFG_DB] :
-                task=self.task_definitions[task_definition]
+                task=self.task_definitions[task_definition_type]
                 if task is None and search_type in [CFGOrderEnum.CFG_DB] :
-                    task=TaskDB(scoped_session=session).get_task_definition(task_type=task_definition) 
+                    task=TaskDB(scoped_session=session).get_task_definition(task_type=task_definition_type) 
             elif search_type in [CFGOrderEnum.DB_ONLY,CFGOrderEnum.DB_CFG]:
-                task=TaskDB(scoped_session=session).get_task_definition(task_type=task_definition)   
+                task=TaskDB(scoped_session=session).get_task_definition(task_type=task_definition_type)   
                 if task is None and search_type in [CFGOrderEnum.DB_CFG] :
-                    task=self.task_definitions[task_definition]
+                    task=self.task_definitions[task_definition_type]
 
             if task:
                 config=None
@@ -239,7 +244,7 @@ class TMgr():
                 return config
                 # return task["config"]
             else:
-                raise Exception(f"Task definition not found {task_definition}")
+                raise Exception(f"Task definition not found {task_definition_type}")
         except Exception as oex:
             raise 
         finally:
@@ -268,26 +273,27 @@ class TMgr():
                 task_obj=self.get_task(id_task)
                 task_type=str(task_obj.type).upper()  
                 task_ret={} 
-                task_config=self.task_definition_fetch(task_definition=task_type)                
-                if task_config is None:
+                task_definition_cfg=self.task_definition_fetch(task_definition_type=task_type)                
+                if task_definition_cfg is None:
                     msg=f"task definition not found: {task_type}"
                     task_db.update_status(id=id_task,new_status=TaskStatusEnum.ERROR,output=msg)
                     return 
 
                 
-                launchType=task_config["task_handler"].get("launchType","")
+                launchType=task_definition_cfg["task_handler"].get("launchType","")
                 if launchType=="":
                     # check in root
-                    launchType=task_config.get("launchType","")
+                    launchType=task_definition_cfg.get("launchType","")
                 launchType=launchType.upper()    
-                if not "task_definition" in task_config:
-                    task_config["task_definition"]={}
-                task_config["task_definition"]["task_id_task"]=str(id_task)
+                if not "task_definition" in task_definition_cfg:
+                    task_definition_cfg["task_definition"]={}
+                # Always include task id 
+                task_definition_cfg["task_definition"]["task_id_task"]=str(id_task)
                 
                 resp=task_db.update_status(id=id_task,new_status=TaskStatusEnum.WAIT_EXECUTION,progress=0,output="",time_start="NOW()" )
                 tl=None
                 try:
-                    tl=TaskLoader(task_config)
+                    tl=TaskLoader(task_definition_cfg)
                     #-----------START TASK  --------------------
                     
                     task_ret=tl.run_task()
@@ -305,7 +311,7 @@ class TMgr():
                         log.debug(f"Task {task_obj.type} {id_task}  launchType:{launchType}.")    
                         if launchType==LitEnum.LAUNCHTYPE_INTERNAL: 
                             #We set task_next_status to FINISHED if it is not informed.
-                            task_next_status=task_config["task_handler"].get("task_next_status",TaskStatusEnum.FINISHED) 
+                            task_next_status=task_definition_cfg["task_handler"].get("task_next_status",TaskStatusEnum.FINISHED) 
                             msg=task_ret.get('message',None)
                             progress=100                                                        
                             task_db.update_status(id=id_task,new_status=task_next_status,output=msg,progress=progress,time_end="NOW()")
@@ -320,7 +326,7 @@ class TMgr():
                     task_ret["status"]="ERROR"
                     task_db.update_status(id=id_task,new_status=TaskStatusEnum.ERROR,output=msg,progress=0) 
 
-                task_ret["next_task_wait_seconds"]=task_config.get("next_task_wait_seconds",0)
+                task_ret["next_task_wait_seconds"]=task_definition_cfg.get("next_task_wait_seconds",0)
 
             else:
                 # No se ha podido actualizar, bien porque se ha borrado, porque ya se ha ejecutado, etc. 

@@ -12,7 +12,7 @@ from .base_manager import BaseManager
 BASE_ORM:Type[DeclarativeMeta]=BaseManager.get_base()
 
 class Task(BASE_ORM):
-    """ Task ORM model
+    """ Task model that holds information about the process to be executed.
 
     Args:
         base_orm (declarative_base): declarative_base
