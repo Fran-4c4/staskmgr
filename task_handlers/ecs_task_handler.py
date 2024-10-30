@@ -22,6 +22,7 @@ class ECSTaskHandler(TaskHandlerInterface):
         self.launchType = None
         self.networkMode = None
         self.auto_scaling_group_wait_time=60
+        logging.getLogger('boto3').setLevel(level=logging.ERROR) #Set matplotlib log to CRITICAL level.
 
     def config(self):
         """config class
@@ -96,113 +97,156 @@ class ECSTaskHandler(TaskHandlerInterface):
         
         attempts = 0
         max_attempts = self.task_data.get("max_attempts",10)
-        response=None
+        run_task_response=None
         aws_task_cmd = []
         id_process=self.task_data.get("task_id_task",None)
         if id_process:
             aws_task_cmd = ['--idprocess', str(id_process)]
             
-        asg_instances=self.check_ASG_capacity()
-        if asg_instances==0:
+        asg_capacity=self.check_ASG_capacity()
+        if asg_capacity==0:
             self.log.info("No Container Instances were found in your cluster, increasing ASG(Auto scaling group)...")
-            self.increase_ASG_capacity()
+            self.increase_ASG_capacity(self.auto_scaling_group_DesiredCapacity)
             instance_ready=self.checkInstanceStatus()
             if not instance_ready:
                 raise Exception(f"There is no instances ready to deploy task {id_process}.")
         else:
-            self.log.debug(f"ASG has {asg_instances} instances")
+            self.log.info(f"ASG has {asg_capacity} instances. Increasing + 1")
+            self.increase_ASG_capacity(asg_capacity+1)
+            instance_ready=self.checkInstanceStatus()
+            if not instance_ready:
+                raise Exception(f"There is no instances ready to deploy task {id_process}.")
             
-            
-        def run_task():
-            try:
-                response = self.client.run_task(
-                    taskDefinition=self.aws_task_definition,
-                    launchType=self.launchType,
-                    cluster=self.aws_cluster_name,
-                    overrides={
-                        'containerOverrides': [
-                            {
-                                'name': self.aws_task_container_name,
-                                'command': aws_task_cmd
-                            },
-                        ]
-                    }
-                )        
-                return response      
-            except Exception as e:                
-                if "No Container Instances were found in your cluster" in str(e):
-                    self.log.info("No Container Instances were found in your cluster...")
-                    return None
-                else:
-                    raise e  
-            
-            
-        while response is None and attempts < max_attempts:
-            response = run_task()
-            if response is None:
+        # even the instance is ready we need to wait to allocate the task
+        run_task_response=None    
+        while attempts < max_attempts:
+            run_task_response = self.run_ecs_task(aws_task_cmd)
+            if run_task_response in ["NO_CONTAINER_INSTANCES","NO_GPU"]:
                 attempts += 1
-                self.log.info(f"Task was not deployed, waiting {self.auto_scaling_group_wait_time}seconds ... Try {attempts}/{max_attempts}")
+                self.log.error(f"Task was not deployed, waiting {self.auto_scaling_group_wait_time}seconds ... Try {attempts}/{max_attempts}")
                 time.sleep(self.auto_scaling_group_wait_time)  # Esperar un tiempo antes de volver a intentar
 
-        if response and 'failures' in response and len(response['failures']) == 0:
-            log_resp=json.dumps(response, indent=4, default=str)
-            self.log.info(f"Instance launched. {log_resp}")
-            return True
-        else:
-            raise Exception(f"There is an error throwing the task. {str(response)}" )
+            elif run_task_response and 'failures' in run_task_response and len(run_task_response['failures']) == 0:
+                log_resp=json.dumps(run_task_response, indent=4, default=str)
+                self.log.info(f"Instance launched. {log_resp}")
+                return True
+
+                
+        # if we get here we have an error stating the task
+        raise Exception(f"There is an error throwing the task. {str(run_task_response)}" )
+
+
+    def run_ecs_task(self,aws_task_cmd):
+        try:
+            run_task_response = self.client.run_task(
+                taskDefinition=self.aws_task_definition,
+                launchType=self.launchType,
+                cluster=self.aws_cluster_name,
+                overrides={
+                    'containerOverrides': [
+                        {
+                            'name': self.aws_task_container_name,
+                            'command': aws_task_cmd
+                        },
+                    ]
+                }
+            )        
+            
+            if run_task_response and 'failures' in run_task_response and len(run_task_response['failures']) == 0:
+                log_resp=json.dumps(run_task_response, indent=4, default=str)
+                self.log.info(f"Instance launched. {log_resp}")
+                return run_task_response
+            elif run_task_response and 'failures' in run_task_response and len(run_task_response['failures']) > 0:
+                msg=str(run_task_response)
+                if "No Container Instances were found in your cluster" in msg:
+                    self.log.info(f"No Container Instances were found in your cluster={self.aws_cluster_name}")
+                    return "NO_CONTAINER_INSTANCES"
+                elif '"reason": "RESOURCE:GPU"' in msg:
+                    self.log.error("No Container Instances with GPU...")
+                    return "NO_GPU"            
+                
+            return run_task_response      
+        except Exception as e:                
+            if "No Container Instances were found in your cluster" in str(e):
+                self.log.info("No Container Instances were found in your cluster...")
+                return "NO_CONTAINER_INSTANCES"
+            elif '"reason": "RESOURCE:GPU"' in str(e):
+                self.log.error("No Container Instances with GPU...")
+                return "NO_GPU"            
+            else:
+                raise e  
 
 
     def checkInstanceStatus(self):
-        """check instance status in ASG group
+        """Check the most recently launched instance status in ASG group.
 
         Returns:
-            boolean: true if there is an instance ready for deploying
+            boolean: true if the most recent instance is ready for deploying
         """        
-        # Check ASG for 'InService' instance
-        log=self.log
+        log = self.log
         instance_ready = False
         autoscaling_client = boto3.client('autoscaling', region_name=self.aws_region)
         ec2_client = boto3.client('ec2')
         attempts = 0
-        max_attempts = self.task_data.get("max_attempts",10)
+        max_attempts = 30 #self.task_data.get("max_attempts", 10)
+
         while not instance_ready and attempts < max_attempts:
             attempts += 1
+
+            # Get instance IDs for instances in the ASG that are in the 'InService' state
             response = autoscaling_client.describe_auto_scaling_instances()
-            instance_id = None
+            in_service_instance_ids = [
+                instance['InstanceId'] for instance in response['AutoScalingInstances']
+                if instance['AutoScalingGroupName'] == self.auto_scaling_group_name
+                and instance['LifecycleState'] == 'InService'
+            ]
 
-            for instance in response['AutoScalingInstances']:
-                if instance['AutoScalingGroupName'] == self.auto_scaling_group_name and instance['LifecycleState'] == 'InService':
-                    instance_id = instance['InstanceId']
-                    log.debug(f"Instance {instance_id} is in 'InService' state.")
-                    break
+            if in_service_instance_ids:
+                # Get detailed information for each instance, including 'LaunchTime'
+                instance_details = ec2_client.describe_instances(InstanceIds=in_service_instance_ids)
+                instances_with_launch_time = [
+                    {
+                        'InstanceId': i['InstanceId'],
+                        'LaunchTime': i['LaunchTime']
+                    }
+                    for reservation in instance_details['Reservations']
+                    for i in reservation['Instances']
+                ]
 
-            if instance_id:
-                # 3. Check instance status checks
-                while True:
+                # Sort by LaunchTime to get the most recent instance
+                latest_instance = sorted(instances_with_launch_time, key=lambda x: x['LaunchTime'], reverse=True)[0]
+                instance_id = latest_instance['InstanceId']
+                log.debug(f"Checking status for the most recent instance: {instance_id}")
+                attempts=0 #reset to filter here
+                max_attempts = self.task_data.get("max_attempts", 10)
+                # Check the status of the most recent instance
+                while attempts < max_attempts:
+                    attempts += 1
                     status_response = ec2_client.describe_instance_status(InstanceIds=[instance_id])
                     if status_response['InstanceStatuses']:
                         instance_status = status_response['InstanceStatuses'][0]
                         if (instance_status['InstanceStatus']['Status'] == 'ok' and
                                 instance_status['SystemStatus']['Status'] == 'ok'):
-                            log.debug(f"Instance {instance_id} has passed all status checks.")
+                            log.info(f"Instance {instance_id} has passed all status checks.")
                             instance_ready = True
-                            break
+                            return instance_ready                        
                     log.debug(f"Waiting for instance {instance_id} to pass status checks...")
                     time.sleep(self.auto_scaling_group_wait_time)
             else:
                 log.debug("Waiting for an 'InService' instance in ASG...")
-                time.sleep(self.auto_scaling_group_wait_time)
-                
+                time.sleep(10)
+
         return instance_ready
+
         
-    def increase_ASG_capacity(self):
+    def increase_ASG_capacity(self,desired_capacity):
         """increase Autoscaling group capacity
         """        
         autoscaling_client = boto3.client('autoscaling', region_name=self.aws_region)
 
         autoscaling_client.set_desired_capacity(
             AutoScalingGroupName=self.auto_scaling_group_name,
-            DesiredCapacity=self.auto_scaling_group_DesiredCapacity,
+            DesiredCapacity=desired_capacity,
             HonorCooldown=False
         )        
         

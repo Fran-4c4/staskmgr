@@ -1,2 +1,2 @@
-Version 1.5.13
-Expose TaskDB,Task,TaskDep 
+Version 1.5.31
+New AWS ecs handler. Now allow to increase ASG waiting for the instance before place the deiserd task.
