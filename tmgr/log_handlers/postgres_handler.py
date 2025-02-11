@@ -2,6 +2,7 @@
 import logging
 from typing import Dict
 import psycopg2
+from psycopg2 import pool
 from psycopg2 import sql
 from datetime import datetime
 import time
@@ -32,30 +33,67 @@ class PostgreSQLHandler(logging.Handler):
             INSERT INTO {self.table_name} (timestamp, level, name, message, origin)
             VALUES (%s, %s, %s, %s, %s)
         """
-        self.config(cfg=config)
-        self.conn = None
-        self.cursor = None
-        self.setup_connection()
+        self.config(cfg=config)       
+        # Initialize connection pool
+        self.connection_pool = None
+        self.setup_connection_pool()
 
-    def setup_connection(self):
-        self.conn = psycopg2.connect(self.dsn)
-        self.cursor = self.conn.cursor()
+        
+    def setup_connection_pool(self):
+        """Set up a connection pool."""
+        try:
+            self.connection_pool = psycopg2.pool.SimpleConnectionPool(
+                1, 100,  # Min 1 connection, max 10 connections in the pool
+                dsn=self.dsn
+            )
+            if not self.connection_pool:
+                raise Exception("Connection pool could not be created.")
+        except Exception as e:
+            raise Exception(f"Error setting up connection pool: {e}")
+        
+    def get_connection(self):
+        """Get a connection from the pool."""
+        if not self.connection_pool:
+            self.setup_connection_pool()
+        return self.connection_pool.getconn()
+
+    def release_connection(self, conn):
+        """Release a connection back to the pool."""
+        if self.connection_pool and conn:
+            self.connection_pool.putconn(conn)
 
     def emit(self, record):
-        if self.conn is None or self.cursor is None:
-            self.setup_connection()
-        # log_entry = self.format(record)
-        timestamp=time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(record.created))
-        # timestamp = datetime.strptime(record.created, '%Y-%m-%d %H:%M:%S,%f').strftime('%Y-%m-%d %H:%M:%S')
-        origin=getattr(record, 'origin', "")
-        call_path=f"{record.name}.{record.funcName}:{record.lineno}"
-        params=(timestamp, record.levelname, call_path, record.getMessage(),origin)
-        self.cursor.execute(self.insert_query,params )
-        self.conn.commit()
+        conn = None
+        cursor = None
+        try:
+            # Get a connection from the pool
+            conn = self.get_connection()
+            cursor = conn.cursor()           
+            # log_entry = self.format(record)
+            timestamp=time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(record.created))
+            # timestamp = datetime.strptime(record.created, '%Y-%m-%d %H:%M:%S,%f').strftime('%Y-%m-%d %H:%M:%S')
+            origin=getattr(record, 'origin', "")
+            call_path=f"{record.name}.{record.funcName}:{record.lineno}"
+            params=(timestamp, record.levelname, call_path, record.getMessage(),origin)
+            cursor.execute(self.insert_query,params )
+            conn.commit()
+            
+        except Exception as e:
+            if conn:
+                conn.rollback()
+            logging.error(f"Failed to log to database: {e}")
+        
+        finally:
+            # Ensure cursor is closed and connection is released back to the pool
+            if cursor:
+                cursor.close()
+            if conn:
+                self.release_connection(conn)
 
     def close(self):
-        if self.conn is not None:
-            self.conn.close()
+        """Close all connections in the pool."""
+        if self.connection_pool:
+            self.connection_pool.closeall()
         super().close()
 
     
