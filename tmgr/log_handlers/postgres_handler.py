@@ -52,10 +52,24 @@ class PostgreSQLHandler(logging.Handler):
             raise Exception(f"Error setting up connection pool: {e}")
         
     def get_connection(self):
-        """Get a connection from the pool."""
+        """Get a connection from the pool. Check if connection is closed wich is not done by psycopg
+        
+        """
         if not self.connection_pool:
             self.setup_connection_pool()
-        return self.connection_pool.getconn()
+            
+        conn = self.connection_pool.getconn()    
+        
+        # Check if the connection is closed
+        if conn.closed:
+            logging.warning("Connection from pool is closed. Replacing with a new connection.")
+            # Remove the invalid connection from the pool
+            self.connection_pool.putconn(conn, close=True)
+            # Create a new connection
+            conn = self.connection_pool.getconn()
+            
+            
+        return conn
 
     def release_connection(self, conn):
         """Release a connection back to the pool."""
