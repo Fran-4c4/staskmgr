@@ -4,8 +4,9 @@
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
+
         {
-            "name": "Run tmgr ",
+            "name": "Run tmgr Example",
             "type": "debugpy",
             "request": "launch",
             "program": "${workspaceFolder}/run.py",
@@ -21,22 +22,32 @@
             "envFile": "${workspaceFolder}/.env",
             "console": "integratedTerminal",
             "args": [
-                "-m","tmgr","config_file","..config/appconfig.json"
+                "-m",
+                "tmgr",
+                "config_file",
+                "..config/appconfig.json"
             ],
             "justMyCode": false
         },
         {
-            "name": "Start tmgr module2",
+            "name": "Start tmgr main",
             "type": "debugpy",
             "request": "launch",
-            "program": "${workspaceFolder}/tmgr/__main__.py",  // Ejecuta el módulo principal
+            "program": "${workspaceFolder}/tmgr/__main__.py", // Ejecuta el módulo principal
             "envFile": "${workspaceFolder}/.env",
             "console": "integratedTerminal",
             "args": [
-                "config_file", "../config/appconfig.json"  // Argumentos personalizados
+                "config_file",
+                "../config/appconfig.json" // Argumentos personalizados
             ],
             "justMyCode": false
+        },
+        {
+            "name": "Build",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/scripts/build.py",
+            "console": "integratedTerminal"
         }
-        
     ]
 }

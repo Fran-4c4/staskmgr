@@ -108,7 +108,7 @@ class TaskLoader:
         
         try:
             task_params= {"task_definition": self.config.get('task_definition',None)}
-            task_instance.run_task(**task_params)
+            task_ret= task_instance.run_task(**task_params)
         except Exception as e:
             msg=f"Error executing 'run_task' in class '{class_name}': {str(e)}"
             task_ret['status']="ERROR"
