@@ -4,3 +4,5 @@ Version 1.5.34
 Fix psycopg connection pool. psycopg2.pool.SimpleConnectionPool does not automatically check if a connection retrieved from the pool is closed or stale. If a connection is closed (e.g., due to being idle for too long, network issues, or being explicitly closed), the pool will still return it as if it were valid.
 Version 1.5.35
 Added dockerhandler example.
+Version 1.5.36
+Upgrade from psycopg2 to version 3 psycopg. Now can use psycopg2 and psycopg version 3

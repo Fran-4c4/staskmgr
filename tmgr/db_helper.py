@@ -1,4 +1,4 @@
-import psycopg2
+import psycopg
 import sqlite3
 import logging
 import os
@@ -51,7 +51,7 @@ class DBHelper:
 
 
     def config_postgresql(self):
-        self.connection = psycopg2.connect(
+        self.connection = psycopg.connect(
                 host=self.host,
                 database=self.database,
                 user=self.user,
