@@ -15,7 +15,15 @@ from tmgr.log_handlers.origin_filter import OriginFilter
 
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 
-def file_get_full_path(file_path):
+def file_get_absolute_path(file_path:str):
+    """return full file path if the file_path is relative or absolute.
+
+    Args:
+        file_path (str): file path
+
+    Returns:
+        str: absolute path
+    """    
     if file_path:               
         # Check if the path is absolute
         if not os.path.isabs(file_path):
@@ -101,7 +109,7 @@ if __name__ == "__main__":
 
     load_env(app_name="stmgr",env_name="DEV")
     config_like=os.getenv("stmgr_config_file", "config/appconfig.json" )
-    full_path=file_get_full_path(file_path=config_like)
+    full_path=file_get_absolute_path(file_path=config_like)
     config_like=full_path
     print(f"Config file: {full_path}")
     cfg=ConfigurationHelper().load_config(config_like=config_like)

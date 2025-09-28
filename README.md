@@ -17,7 +17,7 @@ pip install git+https://github.com/Fran-4c4/staskmgr
 
 ## Usage and requirements
 - First you need to configure the minimum parameters in order to run tasks. See  [Configuration](./docs/configuration.md)
-- Second you need a database to store configuration and task management. See table creation in folder config\ddbb_script.sql or [Configuration scripts](./docs/configuration_sql.md) Now only postgresql is suported.
+- Second you need a database to store configuration and task management. See table creation in folder config\ddbb_script.sql or [Configuration scripts](./docs/configuration_sql.md) Actually only postgresql is suported.
 
 
 

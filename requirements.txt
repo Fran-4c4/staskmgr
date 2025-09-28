@@ -1,8 +1,14 @@
-SQLAlchemy>=1.4.39,<2.0.0
+SQLAlchemy>=2.0.0
 python-dotenv
 #windows
-psycopg2-binary==2.9.6; sys_platform == 'win32' and python_version >= '3.7' and python_version < '3.8'
-psycopg2-binary>=2.9.6; sys_platform == 'win32' and python_version >= '3.8'
-#linux
-psycopg2>=2.9.1,<=2.9.6; sys_platform == 'linux' and python_version >= '3.7' and python_version < '3.8'
-psycopg2>=2.9.1,<=2.9.6; sys_platform == 'linux' and python_version >= '3.8'
+# psycopg2-binary==2.9.6; sys_platform == 'win32' and python_version >= '3.7' and python_version < '3.8'
+# psycopg2-binary>=2.9.6; sys_platform == 'win32' and python_version >= '3.8'
+# psycopg2-binary>=2.9.9; sys_platform == 'win32' and python_version >= '3.12'
+# #linux
+# psycopg2>=2.9.1,<=2.9.6; sys_platform == 'linux' and python_version >= '3.7' and python_version < '3.8'
+# psycopg2>=2.9.1,<=2.9.6; sys_platform == 'linux' and python_version >= '3.8' and python_version < '3.11'
+# psycopg2>=2.9.9; sys_platform == 'linux' and python_version >= '3.11'
+# Uncomment docker if you use docker
+psycopg[binary]
+psycopg-pool
+docker  

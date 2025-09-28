@@ -46,6 +46,7 @@ class TaskDB(DBBase):
         parameters = {'task_mgr_id': task_mgr_id}
         
         query_res= session.execute(sqltext(sql),params=parameters).fetchone() 
+        obj=None
         if query_res:
             obj=self.to_dict(query_res)
         return obj

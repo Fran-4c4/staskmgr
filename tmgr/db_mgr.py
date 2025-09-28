@@ -41,7 +41,7 @@ class DBMgr():
         scon=None
         
         if db_type=="POSTGRES":    
-            scon =f'postgresql://{str(user)}:{str(password)}@{host}:{str(port)}/{str(db_name)}'            
+            scon =f'postgresql+psycopg://{str(user)}:{str(password)}@{host}:{str(port)}/{str(db_name)}'            
         else:
             raise ValueError("db_type must be POSTGRES")
         

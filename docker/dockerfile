@@ -1,0 +1,9 @@
+# Dockerfile
+FROM python:3.12-slim
+
+WORKDIR /app
+
+# Copiar el script
+COPY sleep_and_report.py /app/sleep_and_report.py
+
+ENTRYPOINT ["python", "sleep_and_report.py"]

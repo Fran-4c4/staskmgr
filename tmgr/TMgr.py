@@ -5,6 +5,8 @@ import time
 from typing import Dict
 from datetime import datetime, timezone
 
+from sqlalchemy import RowMapping
+
 import tmgr
 from tmgr.enums.lit_enum import FilterTaskKeyEnum
 from tmgr.model.config import Config
@@ -110,10 +112,7 @@ class TMgr():
             self.th_check_configuration=PeriodicTask(interval=self.cfg.check_configuration_interval, task_function=self.config_tmgr_from_ddbb)
             self.th_check_configuration.start()
             self.log.info(f"Check DDBB configuration each {self.cfg.check_configuration_interval}seconds")
-            
-
-
-                        
+ 
         
     def config_tmgr_from_ddbb(self):
         """config manager
@@ -121,7 +120,13 @@ class TMgr():
         Args:
             cfg (dict): dict with configuration
         """        
-        cfg:Dict=TaskDB().get_task_mgr_configuration(self.app_config["manager_name"]).config
+        db_query_config: RowMapping | None  =TaskDB().get_task_mgr_configuration(self.app_config["manager_name"])
+
+        if db_query_config is None:
+            raise Exception("Configuration doesn´t exists, please check the configuration key {} in DDBB.")
+        
+        cfg:Dict=db_query_config.config
+        
         self.app_config["mgr_config"]=cfg
         self.cfg.task_types=cfg.get("task_types",[])
         
@@ -151,9 +156,6 @@ class TMgr():
         if self.cfg.check_configuration_interval==0 and self.cfg.check_configuration_interval!=old_check_configuration_interval:
             self.log.info("Stop check DDBB")
 
-
-
-        
         
     def _load_task_definitions(self): 
         """load task definitions to execute task from config file

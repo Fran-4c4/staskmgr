@@ -5,4 +5,5 @@ sphinx
 wheel
 boto3
 twine
+docker
 
