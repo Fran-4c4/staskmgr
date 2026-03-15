@@ -16,6 +16,7 @@ env/
 build/
 develop-eggs/
 dist/
+build_check/
 downloads/
 eggs/
 .eggs/
@@ -27,6 +28,7 @@ var/
 *.egg-info/
 .installed.cfg
 *.egg
+*.whl
 
 # PyInstaller
 #  Usually these files are written by a python script from a template

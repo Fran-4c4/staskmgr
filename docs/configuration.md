@@ -24,6 +24,40 @@ except Exception as oEx:
     return "your response or raise exception"
 ```
 
+## New runtime compatibility settings
+The service can run in three compatibility modes without breaking current clients:
+
+- `LEGACY`: current behavior based on status transitions only.
+- `AUTO`: enables lease-based recovery when the upgraded schema is present.
+- `SAFE`: requires the upgraded schema and enables the safer recovery flow.
+
+Recommended manager configuration in `tmgr_config.config`:
+
+```json
+{
+  "compatibility_mode": "AUTO",
+  "lease_timeout_seconds": 300,
+  "task_heartbeat_interval": 30,
+  "external_reconcile_interval_seconds": 30,
+  "external_reconcile_batch_size": 10
+}
+```
+
+Notes:
+- Existing applications using `TaskDB` synchronously do not need to migrate to async.
+- The STMGR service uses SQLAlchemy async internally.
+- If you enable `SAFE`, first apply the SQL migration in `config/ddbb_upgrade_1_6.sql`.
+- Reconciliation of detached external tasks requires the upgraded schema and `AUTO` or `SAFE` mode.
+
+## Docker task handler
+`DockerTaskHandler` now supports `DETACHED` and `BLOCKING` modes.
+
+- `DETACHED` is the default and is intended for heavy containers.
+- `BLOCKING` waits for the container to finish and should be used for lightweight containers.
+- `wait_for_completion=true` is still accepted for backward compatibility and maps to `BLOCKING`.
+
+See [Docker handler guide](./docker_handler.md).
+
 ## Database tables
 There are some tables needed for STMGR to work. The script for this tables is in file **ddbb_script.sql** config folder. See table creation in folder config\ddbb_script.sql or [Configuration scripts](./configuration_sql.md)
 

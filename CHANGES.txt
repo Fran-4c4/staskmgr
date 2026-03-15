@@ -1,3 +1,11 @@
+Version 1.6.0
+Python 3.10+ is now required.
+Added SQLAlchemy async runtime internally for STMGR service while keeping TaskDB sync for current clients.
+Added compatibility modes LEGACY, AUTO and SAFE.
+Added additive lease-recovery columns and upgrade SQL script for PostgreSQL.
+Improved package portability on case-sensitive filesystems.
+DockerTaskHandler now supports DETACHED default mode and BLOCKING mode for lightweight containers.
+Added reconciliation for detached Docker tasks using external_ref in upgraded schemas.
 Version 1.5.31
 New AWS ecs handler. Now allow to increase ASG waiting for the instance before place the desired task.
 Version 1.5.34

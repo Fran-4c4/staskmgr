@@ -1,8 +1,8 @@
 """Simple task manager
    tmgr module 
 """
-__name__ = 'simple_task_manager'
-__version__     = '1.5.37'
+__dist_name__    = 'simple_task_manager'
+__version__     = '1.6.0'
 __author__      = 'Francisco R. Moreno Santana'
 __contact__     = 'franrms@gmail.com'
 __homepage__    = 'https://github.com/Fran-4c4/staskmgr'
@@ -13,8 +13,9 @@ __bug_tracker__ = "https://github.com/Fran-4c4/staskmgr/issues"
 __source_code__ = "https://github.com/Fran-4c4/staskmgr"
 
 import time
-from .tmgr import TMgr
+from .TMgr import TMgr
 
+from .async_task_db import AsyncTaskDB
 from .env_loader import *
 from .model.task import Task
 from .model.task_dep import TaskDep

@@ -122,7 +122,7 @@ pip install -i https://test.pypi.org/simple/ simple-task-manager==0.1.4
 '''
 
 setup(
-    name=meta['name'],
+    name=meta.get('dist_name', meta.get('name', 'simple-task-manager')),
     version=meta['version'],
     description=meta['description'],
     long_description=long_description(),
@@ -138,15 +138,12 @@ setup(
     install_requires=install_requires(),
     packages=find_packages(exclude=packages_to_exclude())
     ,classifiers=[
-        "Programming Language :: Python :: 3.7",
-        "Programming Language :: Python :: 3.8",
-        "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: 3.12",
         "Programming Language :: Python :: 3 :: Only",
         "Topic :: System :: Distributed Computing",
         "Operating System :: OS Independent"
     ],
-    python_requires='>=3.7'
+    python_requires='>=3.10'
 )
-

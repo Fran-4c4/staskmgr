@@ -12,6 +12,7 @@ import traceback
 from typing import Dict
 from tmgr.log_handlers.postgres_handler import  PostgreSQLHandler
 from tmgr.log_handlers.origin_filter import OriginFilter
+from tmgr import TMgr
 from tmgr import version
 
 cfg:Dict=None
@@ -74,6 +75,7 @@ def init_logging(task_mgr_name='staskmgr',log_path='app.log',use_db_handler=Fals
 def main(args=None):
     """Run script entry point.
     """
+    global cfg
     if args is None:
         args = sys.argv[1:]
 
@@ -83,6 +85,9 @@ def main(args=None):
         
         task_mgr_name=parsed_args.task_mgr_name
         config_file=parsed_args.config_file
+        if isinstance(config_file, list):
+            config_file = config_file[0] if config_file else "config/appconfig.json"
+        cfg_path=config_file
         
         if not os.path.isabs(config_file):
             # If it's not absolute, resolve it relative to the application path
@@ -100,7 +105,7 @@ def main(args=None):
 
         logger = logging.getLogger(__name__)
         logger.info('Starting run.py demo.')
-        pl=tmgr.TMgr(config_like=config_file)
+        pl=TMgr(config_like=config_file)
         
         pl.monitor_and_execute()
 
@@ -142,8 +147,8 @@ def get_parser():
                         help=wrap('Name of task manager to run.'))
     
     parser.add_argument(dest='config_file',
-                        nargs='*',
-                        default=None,
+                        nargs='?',
+                        default="config/appconfig.json",
                         help=wrap('Pass config file. Use absolute path or relative path'))
     
     parser.add_argument('--version', action='version',

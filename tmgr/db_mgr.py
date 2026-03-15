@@ -1,11 +1,12 @@
 
 import logging
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import declarative_base, sessionmaker
 from sqlalchemy.exc import SQLAlchemyError
 import urllib.parse
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
+from .async_db_base import AsyncDBBase
 from .db_base import DBBase
 
 Base = declarative_base()
@@ -46,7 +47,18 @@ class DBMgr():
             raise ValueError("db_type must be POSTGRES")
         
         try:
-            DBBase.gDbEngine = create_engine(scon, pool_size=pool_size, max_overflow=max_overflow)
+            DBBase.gDbEngine = create_engine(
+                scon,
+                pool_size=pool_size,
+                max_overflow=max_overflow,
+                pool_pre_ping=True,
+            )
+            AsyncDBBase.gAsyncDbEngine = create_async_engine(
+                scon,
+                pool_size=pool_size,
+                max_overflow=max_overflow,
+                pool_pre_ping=True,
+            )
         except SQLAlchemyError as oEx:
             log.exception(oEx)
             raise oEx
@@ -60,3 +72,8 @@ class DBMgr():
             Base.metadata.bind = DBBase.gDbEngine
             dbsession = sessionmaker(bind=DBBase.gDbEngine, autoflush=True)
             DBBase.gDBSession = dbsession
+            AsyncDBBase.gAsyncSession = async_sessionmaker(
+                bind=AsyncDBBase.gAsyncDbEngine,
+                autoflush=False,
+                expire_on_commit=False,
+            )

@@ -21,6 +21,11 @@ class Config:
     wait_between_tasks_seconds: int = field(default=5, metadata={"description": "wait between tasks seconds"})
     task_definition_search_type: int = field(default=CFGOrderEnum.DB_CFG, metadata={"description": "task_definition_search_type"})
     check_configuration_interval: int = field(default=-1, metadata={"description": "Check configuration interval. If -1 then check is disabled."})
+    compatibility_mode: str = field(default="AUTO", metadata={"description": "Compatibility mode AUTO|LEGACY|SAFE"})
+    lease_timeout_seconds: int = field(default=300, metadata={"description": "Task lease timeout in seconds"})
+    task_heartbeat_interval: int = field(default=30, metadata={"description": "Heartbeat interval for claimed tasks"})
+    external_reconcile_interval_seconds: int = field(default=30, metadata={"description": "Interval for reconciling external tasks"})
+    external_reconcile_batch_size: int = field(default=10, metadata={"description": "Maximum number of external tasks reconciled per cycle"})
     log_level: int = field(default=logging.DEBUG, metadata={"description": "Log level for tmgr package."})
     test_mode: bool = field(default=False, metadata={"description": "Active debug mode"})
     

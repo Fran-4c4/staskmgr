@@ -27,11 +27,21 @@ CREATE TABLE public.tmgr_tasks (
 	modify_date timestamptz DEFAULT now() NULL,
 	scheduled_date timestamp DEFAULT now() NULL,
 	recurrence_interval varchar DEFAULT '1'::character varying NULL,
+	claimed_by text NULL,
+	claim_token text NULL,
+	heartbeat_at timestamptz NULL,
+	lease_until timestamptz NULL,
+	attempt int4 DEFAULT 0 NULL,
+	external_ref text NULL,
+	last_error text NULL,
 	CONSTRAINT tmgr_tasks_pkey PRIMARY KEY (id)
 );
 CREATE INDEX tmgr_tasks_id_tmgr_idx ON public.tmgr_tasks USING btree (id_tmgr);
 CREATE INDEX tmgr_tasks_time_start_idx ON public.tmgr_tasks USING btree (time_start);
 CREATE INDEX tmgr_tasks_type_idx ON public.tmgr_tasks USING btree (type);
+CREATE INDEX tmgr_tasks_status_priority_created_idx ON public.tmgr_tasks USING btree (status, priority DESC, created_at ASC);
+CREATE INDEX tmgr_tasks_lease_until_idx ON public.tmgr_tasks USING btree (lease_until);
+CREATE INDEX tmgr_tasks_claim_token_idx ON public.tmgr_tasks USING btree (claim_token);
 
 
 --CONSTRAINT tmgr_tasks_tmgr_task_definitions_fk FOREIGN KEY ("type") REFERENCES public.tmgr_task_definitions(id)
@@ -79,7 +89,7 @@ CREATE TABLE public.tmgr_logs (
 --EXAMPLE configuration
 INSERT INTO public.tmgr_config
 (id, "name", config, description)
-VALUES('MAIN_MGR', 'MAIN_MGR', '{"log_level": 20, "task_types": ["TEST_MGR"], "max_wait_count": 2, "filter_task_key": "SELF_KEY", "monitor_wait_time_seconds": 10, "wait_between_tasks_seconds": 5, "task_definition_search_type": "DB_CFG", "check_configuration_interval": 20}'::jsonb, 'Main manager for general tasks');
+VALUES('MAIN_MGR', 'MAIN_MGR', '{"log_level": 20, "task_types": ["TEST_MGR"], "max_wait_count": 2, "filter_task_key": "SELF_KEY", "monitor_wait_time_seconds": 10, "wait_between_tasks_seconds": 5, "task_definition_search_type": "DB_CFG", "check_configuration_interval": 20, "compatibility_mode": "AUTO", "lease_timeout_seconds": 300, "task_heartbeat_interval": 30, "external_reconcile_interval_seconds": 30, "external_reconcile_batch_size": 10}'::jsonb, 'Main manager for general tasks');
 --EXAMPLE TASK
 INSERT INTO public.tmgr_task_definitions
 (id, "name", active, config)

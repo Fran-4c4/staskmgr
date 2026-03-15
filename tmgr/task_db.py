@@ -314,7 +314,7 @@ class TaskDB(DBBase):
         except Exception as e:
             raise
 
-    def update_status(self, id: str, new_status: TaskStatusEnum, prev_status=None, output=None, **kwargs):
+    def update_status(self, id: str, new_status: TaskStatusEnum, prev_status=None, output=None, release_claim=False, claim_token=None, **kwargs):
         """update task status
 
         Args:
@@ -332,26 +332,41 @@ class TaskDB(DBBase):
         session = self.getsession()
         try:
             id = str(id)
-            sql = """UPDATE tmgr_tasks
-                    SET status = :new_status
-                    , modify_date= NOW()
-            """
-            parameters = {'new_status': str(new_status) }
+            parameters = {
+                'new_status': str(new_status),
+                'id': id,
+            }
+            set_clauses = [
+                "status = :new_status",
+                "modify_date = NOW()",
+            ]
 
             if output is not None:
-                sql += ", output = :output"
+                set_clauses.append("output = :output")
                 parameters['output'] = str(output)
 
-            sql=self._add_sql_param(key="progress",sql=sql,parameters=parameters,**kwargs)    
-            sql=self._add_sql_param(key="time_start",sql=sql,parameters=parameters,**kwargs)
-            sql=self._add_sql_param(key="time_end",sql=sql,parameters=parameters,**kwargs)                  
+            for key, value in kwargs.items():
+                if value is None:
+                    continue
+                self._add_update_clause(set_clauses=set_clauses, key=key, value=value, parameters=parameters)
 
-            sql += " WHERE id = :id"
-            parameters['id'] = id
+            if release_claim:
+                set_clauses.extend([
+                    "claimed_by = NULL",
+                    "claim_token = NULL",
+                    "heartbeat_at = NULL",
+                    "lease_until = NULL",
+                ])
+
+            sql = f"UPDATE tmgr_tasks SET {', '.join(set_clauses)} WHERE id = :id"
 
             if prev_status is not None:
                 sql += " AND status ILIKE :prev_status"
                 parameters['prev_status'] = str(prev_status)
+
+            if claim_token is not None:
+                sql += " AND claim_token = :claim_token"
+                parameters["claim_token"] = claim_token
 
             sqltext_query = sqltext(sql)
             result = session.execute(sqltext_query, parameters)
@@ -375,6 +390,13 @@ class TaskDB(DBBase):
         except Exception as e:
             raise
         
+    def _add_update_clause(self, set_clauses: list, key: str, value, parameters: dict):
+        if isinstance(value, str) and value.upper() in {"NOW()", "CURRENT_TIMESTAMP"}:
+            set_clauses.append(f"{key} = NOW()")
+        else:
+            set_clauses.append(f"{key} = :{key}")
+            parameters[key] = value
+
     def _add_sql_param(self,key:str,sql:str,parameters:dict,**kwargs):
         """helper method to add parameters to query
 
@@ -389,8 +411,11 @@ class TaskDB(DBBase):
         """        
         value = kwargs.get(key, None)
         if value is not None:
-            sql += f" , {key} = :{key} "
-            parameters[key] = value 
+            if isinstance(value, str) and value.upper() in {"NOW()", "CURRENT_TIMESTAMP"}:
+                sql += f" , {key} = NOW() "
+            else:
+                sql += f" , {key} = :{key} "
+                parameters[key] = value 
         return sql
 
     def get_task_flow(self, id_task):
@@ -524,6 +549,5 @@ class TaskDB(DBBase):
             obj['created_at']     =task_like_obj.id_tmgr
             return obj
             
-
 
 

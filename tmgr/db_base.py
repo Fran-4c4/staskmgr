@@ -1,9 +1,42 @@
 import logging
-from sqlalchemy.orm import Session,sessionmaker
+import warnings
+
 from sqlalchemy.engine import Engine
+from sqlalchemy.orm import Session, sessionmaker
 
 
-class DBBase(object):
+def _warn_deprecated_alias(old_name: str, new_name: str) -> None:
+    warnings.warn(
+        f"`DBBase.{old_name}` is deprecated and will be removed in a future version. "
+        f"Use `DBBase.{new_name}` instead.",
+        DeprecationWarning,
+        stacklevel=3,
+    )
+
+
+class _DBBaseMeta(type):
+    @property
+    def gDbEngine(cls) -> Engine:
+        _warn_deprecated_alias("gDbEngine", "g_db_engine")
+        return cls.g_db_engine
+
+    @gDbEngine.setter
+    def gDbEngine(cls, value: Engine) -> None:
+        _warn_deprecated_alias("gDbEngine", "g_db_engine")
+        cls.g_db_engine = value
+
+    @property
+    def gDBSession(cls) -> sessionmaker:
+        _warn_deprecated_alias("gDBSession", "g_db_session")
+        return cls.g_db_session
+
+    @gDBSession.setter
+    def gDBSession(cls, value: sessionmaker) -> None:
+        _warn_deprecated_alias("gDBSession", "g_db_session")
+        cls.g_db_session = value
+
+
+class DBBase(object, metaclass=_DBBaseMeta):
     """Base class for database access
 
     Args:
@@ -12,12 +45,12 @@ class DBBase(object):
     Returns:
         DBBase: DBBase
     """
-    # global session shared between instances
-    gDbEngine:Engine = None
-    gDBSession:sessionmaker = None
-    session:Session = None
-    scoped_session:Session = None
-    log=None
+    # Global session shared between instances.
+    g_db_engine: Engine = None
+    g_db_session: sessionmaker = None
+    session: Session = None
+    scoped_session: Session = None
+    log = None
 
     def __init__(self, scoped_session: Session = None):
         """init
@@ -36,11 +69,11 @@ class DBBase(object):
         """
         # print(__name__ + "DBBase Destructor called")
         try:
-            self.closeSession()
+            self.close_session()
         except Exception as ex:
-            print(f"DBBase __del__ {str(ex)}" )
+            print(f"DBBase __del__ {str(ex)}")
 
-    def closeSession(self):
+    def close_session(self):
         """
         Closes the existing session if it is exist.
         Do not close the scoped session
@@ -48,6 +81,11 @@ class DBBase(object):
         if self.session:
             self.session.close()
             return
+
+    def closeSession(self):
+        """Deprecated alias for close_session."""
+        _warn_deprecated_alias("closeSession", "close_session")
+        return self.close_session()
 
     def commit(self):
         """
@@ -74,9 +112,6 @@ class DBBase(object):
             return self.session.rollback()
 
     def get_session(self) -> Session:
-        return self.getsession()
-
-    def getsession(self) -> Session:
         """
         Returns the existing scoped_session, if is not exist, return the existing session and if is not exist create a new session and return it.
 
@@ -85,14 +120,17 @@ class DBBase(object):
         """
         if self.scoped_session:
             return self.scoped_session
-        elif self.session:
+        if self.session:
             return self.session
-        else:
-            self.session = DBBase.gDBSession()
-            return self.session
+        self.session = DBBase.g_db_session()
+        return self.session
 
-    
-    def to_dict(self,obj):
+    def getsession(self) -> Session:
+        """Deprecated alias for get_session."""
+        _warn_deprecated_alias("getsession", "get_session")
+        return self.get_session()
+
+    def to_dict(self, obj):
         """return an object as dict. Be carefully with this method, only works in some versions of row and sqlalchemy
 
         Args:
@@ -100,6 +138,6 @@ class DBBase(object):
 
         Returns:
             dict: row to dict
-        """        
+        """
         # return {column.name: getattr(obj, column.name) for column in obj.__table__.columns}
         return obj._mapping

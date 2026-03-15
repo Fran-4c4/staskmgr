@@ -21,4 +21,10 @@ class TaskHandlerInterface(ABC):
             bool: True if the task is launched successfully, False otherwise.
         """
         pass
+
+    def reconcile_task(self, **kwargs):
+        """Optional method used by STMGR to reconcile deferred external tasks.
+        Handlers that do not manage external state can ignore it.
+        """
+        return None
     
