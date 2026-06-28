@@ -117,7 +117,7 @@ twine check --strict dist/*
 upload to pipy 
 twine upload dist/* --verbose
 Test pip
-pip install -i https://test.pypi.org/simple/ simple-task-manager==0.1.4
+pip install -i https://test.pypi.org/simple/ simple-task-manager==x.y.z
 
 '''
 

@@ -13,6 +13,11 @@ except ImportError as ex:
     ) from ex
 
 from tmgr.task_handler_interface import TaskHandlerInterface
+from tmgr.task_correlation import (
+    build_docker_labels,
+    build_task_context,
+    build_task_environment,
+)
 
 
 class DockerTaskHandler(TaskHandlerInterface):
@@ -27,6 +32,8 @@ class DockerTaskHandler(TaskHandlerInterface):
     SUPPORTED_EXECUTION_MODES = {"DETACHED", "BLOCKING"}
 
     def __init__(self):
+        """Create a Docker-backed task handler with empty runtime state."""
+
         self.log = logging.getLogger(__name__)
         self.client = docker.from_env()
         self.task_data: dict = None
@@ -40,6 +47,8 @@ class DockerTaskHandler(TaskHandlerInterface):
         self.networks: list = None
         self.restart_policy = None
         self.environment_files: list = None
+        self.labels: dict = None
+        self.task_context: dict = {}
         self.container_remove: bool = None
         self.wait_for_completion: bool = False
         self.execution_mode: str = "DETACHED"
@@ -64,6 +73,11 @@ class DockerTaskHandler(TaskHandlerInterface):
         self.entrypoint = self.task_data.get("entrypoint")
         self.networks = list(self.task_data.get("networks", []) or [])
         self.restart_policy = self.task_data.get("restart_policy")
+        self.labels = dict(
+            self.task_data.get("labels")
+            or self.task_data.get("container_labels")
+            or {}
+        )
 
         wait_for_completion = bool(self.task_data.get("wait_for_completion", False))
         self.execution_mode = str(
@@ -85,6 +99,18 @@ class DockerTaskHandler(TaskHandlerInterface):
         self.wait_timeout_seconds = int(wait_timeout_seconds) if wait_timeout_seconds else None
 
         self._load_environment_files()
+        self.task_context = build_task_context(
+            task_definition=self.task_data,
+            environment=self.environment,
+        )
+        self.environment = build_task_environment(
+            base_environment=self.environment,
+            context=self.task_context,
+        )
+        self.labels = build_docker_labels(
+            base_labels=self.labels,
+            context=self.task_context,
+        )
         self.command = self._config_command()
 
     def _load_environment_files(self):
@@ -114,14 +140,16 @@ class DockerTaskHandler(TaskHandlerInterface):
             return command
 
         if isinstance(command, list):
-            command = list(command)
-            if "--idtask" in command:
-                idx = command.index("--idtask")
-                if idx + 1 < len(command):
-                    command[idx + 1] = self.id_task
-                else:
-                    command.append(self.id_task)
-            return command
+            command = [str(item) for item in command]
+            for flag in ("--task-id", "--idtask", "--idprocess"):
+                if flag in command:
+                    idx = command.index(flag)
+                    if idx + 1 < len(command):
+                        command[idx + 1] = self.id_task
+                    else:
+                        command.append(self.id_task)
+                    return command
+            return [item.replace("<idtask>", self.id_task) for item in command]
 
         raise ValueError("command must be a string, list or null")
 
@@ -323,6 +351,7 @@ class DockerTaskHandler(TaskHandlerInterface):
                 entrypoint=self.entrypoint,
                 detach=True,
                 network=self.networks[0] if self.networks else None,
+                labels=self.labels,
                 remove=(self.container_remove if self.execution_mode == "DETACHED" else False),
                 restart_policy=self.restart_policy,
             )

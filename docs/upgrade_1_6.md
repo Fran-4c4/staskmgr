@@ -16,7 +16,7 @@ Version 1.6 keeps backward compatibility for current clients while improving ser
 3. Upgrade the package:
 
 ```bash
-pip install -U simple-task-manager==1.6.0
+pip install -U simple-task-manager==1.6.1
 ```
 
 4. Deploy the service with `compatibility_mode=AUTO`.
@@ -25,7 +25,7 @@ pip install -U simple-task-manager==1.6.0
 
 ## Docker deployments
 1. Use a Python 3.10+ base image.
-2. Rebuild the image with STMGR 1.6.0.
+2. Rebuild the image with STMGR 1.6.1 or newer.
 3. Run the SQL upgrade before enabling `SAFE`.
 
 ## Compatibility modes

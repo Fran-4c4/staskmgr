@@ -1,32 +1,38 @@
-from typing import Dict
 import boto3
 import json
 import logging
 import time
 
 from tmgr.task_handler_interface import TaskHandlerInterface
+from tmgr.task_correlation import (
+    build_ecs_environment_overrides,
+    build_ecs_tags,
+    build_task_context,
+)
 
 class ECSTaskHandler(TaskHandlerInterface):
-    """handles ECS task. Can start a fargate task or an EC2 task
+    """Launch tmgr tasks as ECS/Fargate or ECS/EC2 tasks."""
 
-
-    """    
     client=None
     task_data=None
 
     def __init__(self):
+        """Create an ECS task handler with empty AWS runtime state."""
+
         self.log = logging.getLogger(__name__)
         logging.getLogger('botocore').setLevel(logging.INFO)
         self.client = None
         self.task_data=None
         self.launchType = None
         self.networkMode = None
+        self.task_context = {}
+        self.ecs_environment_overrides = []
+        self.ecs_tags = []
         self.auto_scaling_group_wait_time=60
         logging.getLogger('boto3').setLevel(level=logging.ERROR) #Set matplotlib log to CRITICAL level.
 
     def config(self):
-        """config class
-        """ 
+        """Load ECS launch configuration and optional task metadata."""
                
         self.aws_region = self.task_data['region']
         self.aws_subnets = self.task_data['subnets']        
@@ -45,6 +51,9 @@ class ECSTaskHandler(TaskHandlerInterface):
         
         self.platformVersion = self.task_data.get('platformVersion','LATEST')
         self.networkConfiguration = None
+        self.task_context = build_task_context(task_definition=self.task_data)
+        self.ecs_environment_overrides = build_ecs_environment_overrides(self.task_context)
+        self.ecs_tags = build_ecs_tags(self.task_context)
         
 
         if self.networkMode == 'awsvpc':
@@ -58,16 +67,60 @@ class ECSTaskHandler(TaskHandlerInterface):
         
         self.client = boto3.client("ecs", region_name=self.aws_region)
 
+    def _build_task_command(self):
+        """Build the container command override with the current task id."""
 
+        configured_command = self.task_data.get("command")
+        id_process = self.task_data.get("task_id_task", None)
+        if isinstance(configured_command, list):
+            command = [str(item) for item in configured_command]
+            for flag in ("--task-id", "--idtask", "--idprocess"):
+                if flag in command and id_process:
+                    index = command.index(flag)
+                    if index + 1 < len(command):
+                        command[index + 1] = str(id_process)
+                    else:
+                        command.append(str(id_process))
+                    return command
+            return [item.replace("<idtask>", str(id_process)) for item in command]
+        if isinstance(configured_command, str):
+            return [configured_command.replace("<idtask>", str(id_process))]
+        if id_process:
+            return ['--idprocess', str(id_process)]
+        return []
 
-    def run_task(self, **kwargs)->bool: 
-        """Launch a task in a ECS cluster for fargate type
+    def _build_container_override(self, aws_task_cmd):
+        """Build one ECS container override including optional metadata env."""
+
+        container_override = {
+            'name': self.aws_task_container_name,
+            'command': aws_task_cmd
+        }
+        if self.ecs_environment_overrides:
+            container_override["environment"] = self.ecs_environment_overrides
+        return container_override
+
+    def _build_success_response(self, response, mode):
+        """Normalize an ECS run_task response into the handler contract."""
+
+        tasks = response.get("tasks") or []
+        task_arn = tasks[0].get("taskArn") if tasks else None
+        return {
+            "status": "STARTED",
+            "message": f"ECS {mode} task launched.",
+            "external_ref": task_arn,
+            "task_arn": task_arn,
+        }
+
+    def run_task(self, **kwargs)->dict:
+        """Launch one task in the configured ECS mode.
 
         Args:
-            aws_task_cmd (list): Command list
+            **kwargs: Expected to include `task_definition` with ECS launch
+                metadata.
 
         Returns:
-            bool: Launch Result. True=Success | False=Failure
+            dict: Launch result with `status` and optional `external_ref`.
         """     
         task_definition=kwargs.get("task_definition")
         if task_definition is None:
@@ -82,14 +135,11 @@ class ECSTaskHandler(TaskHandlerInterface):
             return self.run_ec2_task()            
         
 
-    def run_ec2_task(self, **kwargs)->bool: 
-        """Launch a task in a ECS cluster for EC2 type
-
-        Args:
-            aws_task_cmd (list): Command list
+    def run_ec2_task(self, **kwargs)->dict:
+        """Launch a task in an EC2-backed ECS cluster.
 
         Returns:
-            bool: Launch Result. True=Success | False=Failure
+            dict: Launch result with ECS task metadata.
         """
         if self.client is None:
             raise Exception("There is an error throwing the task. Boto3 Task client is none.")
@@ -98,10 +148,8 @@ class ECSTaskHandler(TaskHandlerInterface):
         attempts = 0
         max_attempts = self.task_data.get("max_attempts",10)
         run_task_response=None
-        aws_task_cmd = []
         id_process=self.task_data.get("task_id_task",None)
-        if id_process:
-            aws_task_cmd = ['--idprocess', str(id_process)]
+        aws_task_cmd = self._build_task_command()
             
         asg_capacity=self.check_ASG_capacity()
         if asg_capacity==0:
@@ -129,7 +177,7 @@ class ECSTaskHandler(TaskHandlerInterface):
             elif run_task_response and 'failures' in run_task_response and len(run_task_response['failures']) == 0:
                 log_resp=json.dumps(run_task_response, indent=4, default=str)
                 self.log.info(f"Instance launched. {log_resp}")
-                return True
+                return self._build_success_response(run_task_response, "EC2")
 
                 
         # if we get here we have an error stating the task
@@ -144,12 +192,10 @@ class ECSTaskHandler(TaskHandlerInterface):
                 cluster=self.aws_cluster_name,
                 overrides={
                     'containerOverrides': [
-                        {
-                            'name': self.aws_task_container_name,
-                            'command': aws_task_cmd
-                        },
+                        self._build_container_override(aws_task_cmd),
                     ]
-                }
+                },
+                **({"tags": self.ecs_tags} if self.ecs_tags else {})
             )        
             
             if run_task_response and 'failures' in run_task_response and len(run_task_response['failures']) == 0:
@@ -272,21 +318,15 @@ class ECSTaskHandler(TaskHandlerInterface):
         return capacity
         
 
-    def run_fargate_task(self, **kwargs)->bool: 
-        """Launch a task in a ECS cluster for fargate type
-
-        Args:
-            aws_task_cmd (list): Command list
+    def run_fargate_task(self, **kwargs)->dict:
+        """Launch a task in a Fargate-backed ECS cluster.
 
         Returns:
-            bool: Launch Result. True=Success | False=Failure
+            dict: Launch result with ECS task metadata.
         """
 
         if self.client:
-            aws_task_cmd = []
-            id_process=self.task_data.get("task_id_task",None)
-            if id_process:
-                aws_task_cmd = ['--idprocess', str(id_process)]
+            aws_task_cmd = self._build_task_command()
                
             
             response = self.client.run_task(
@@ -298,17 +338,15 @@ class ECSTaskHandler(TaskHandlerInterface):
                 networkConfiguration=self.networkConfiguration,
                 overrides={
                     'containerOverrides': [
-                        {
-                            'name': self.aws_task_container_name,
-                            'command': aws_task_cmd
-                        },
+                        self._build_container_override(aws_task_cmd),
                     ]
-                }
+                },
+                **({"tags": self.ecs_tags} if self.ecs_tags else {})
             )
             
             self.log.info(json.dumps(response, indent=4, default=str))
             if response and 'failures' in response and len(response['failures']) == 0:
-                return True
+                return self._build_success_response(response, "FARGATE")
             else:
                 raise Exception("There is an error throwing the task")
         else:

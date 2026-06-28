@@ -16,6 +16,7 @@ from .enums.task_status_enum import TaskStatusEnum
 from .global_config import gconfig
 from .periodic_task import PeriodicTask
 from .task_db import TaskDB
+from .task_correlation import build_task_context
 from .task_loader import TaskLoader
 
 
@@ -356,6 +357,25 @@ class TMgr:
             return bool(task_ret.get("terminal"))
         return str(task_ret.get("status", "")).upper() in {"COMPLETED", "FINISHED", "ERROR"}
 
+    def _attach_task_context(self, task_definition_cfg: dict, task_obj) -> dict:
+        """Attach best-effort task metadata to one handler definition."""
+
+        if "task_definition" not in task_definition_cfg or task_definition_cfg["task_definition"] is None:
+            task_definition_cfg["task_definition"] = {}
+        task_payload = task_definition_cfg["task_definition"]
+        task_id = task_obj["id"] if isinstance(task_obj, dict) else getattr(task_obj, "id", None)
+        if task_id is None and hasattr(task_obj, "get"):
+            task_id = task_obj.get("id")
+        if task_id in (None, ""):
+            raise ValueError("Task id is required to attach task correlation context.")
+        task_payload["task_id_task"] = str(task_id)
+        task_context = build_task_context(
+            task_definition=task_payload,
+            task_record=task_obj,
+        )
+        task_payload.update(task_context)
+        return task_definition_cfg
+
     async def _claim_external_task_for_reconciliation(self):
         task_types, filter_task_key = self._resolve_task_filters()
         task_db = AsyncTaskDB()
@@ -379,9 +399,10 @@ class TMgr:
 
         try:
             task_definition_cfg = await self.task_definition_fetch_async(task_definition_type=task_type)
-            if "task_definition" not in task_definition_cfg or task_definition_cfg["task_definition"] is None:
-                task_definition_cfg["task_definition"] = {}
-            task_definition_cfg["task_definition"]["task_id_task"] = task_id
+            task_definition_cfg = self._attach_task_context(
+                task_definition_cfg=task_definition_cfg,
+                task_obj=task_obj,
+            )
             task_definition_cfg["task_definition"]["external_ref"] = task_obj.get("external_ref")
 
             task_loader = TaskLoader(task_definition_cfg)
@@ -573,9 +594,10 @@ class TMgr:
                 launch_type = task_definition_cfg.get("launchType", "")
             launch_type = launch_type.upper()
 
-            if "task_definition" not in task_definition_cfg or task_definition_cfg["task_definition"] is None:
-                task_definition_cfg["task_definition"] = {}
-            task_definition_cfg["task_definition"]["task_id_task"] = str(id_task)
+            task_definition_cfg = self._attach_task_context(
+                task_definition_cfg=task_definition_cfg,
+                task_obj=task_obj,
+            )
 
             await task_db.update_status(
                 id=id_task,

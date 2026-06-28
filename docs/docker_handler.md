@@ -29,6 +29,22 @@ Behavior:
 ## Backward compatibility
 - `wait_for_completion=true` is still supported and maps to `execution_mode=BLOCKING`.
 - If `execution_mode` is omitted, the handler uses `DETACHED`.
+- Task correlation metadata is best-effort. Existing definitions only need the
+  concrete task id supplied by STMGR. Optional request, chain, manager and
+  service metadata are propagated when available and omitted when missing.
+
+## Log correlation
+`DockerTaskHandler` injects task identity into the launched container:
+
+- Environment variables: `TASK_ID`, `TMGR_TASK_ID`, and optional `TASK_TYPE`,
+  `TASK_MANAGER`, `PARENT_REQUEST_ID`, `PROCESS_CHAIN_ID`, `SERVICE_NAME`,
+  `DEPLOYMENT_ENVIRONMENT`.
+- Docker labels: `com.staskmgr.task_id` and optional labels for task type,
+  manager, parent request, process chain, service and environment.
+
+These fields let Docker, Filebeat, Fluent Bit, Loki, CloudWatch or another log
+collector index stdout/stderr logs without using PostgreSQL as the technical
+log sink.
 
 ## Reconciliation
 Detached reconciliation requires the upgraded schema introduced in 1.6 and `compatibility_mode=AUTO` or `SAFE`.

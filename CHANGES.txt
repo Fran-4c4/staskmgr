@@ -1,3 +1,9 @@
+Version 1.6.1
+Added best-effort task correlation metadata for Docker and ECS handlers.
+Added task logging context helpers, JSON task formatter, and task context filter.
+DockerTaskHandler now injects TASK_ID/TMGR_TASK_ID and optional task labels without requiring new fields.
+ECSTaskHandler now passes optional task environment overrides/tags and returns ECS task ARN as external_ref when available.
+Docker labels and ECS tags use generic staskmgr prefixes so consumers can keep project-specific naming in their own integrations.
 Version 1.6.0
 Python 3.10+ is now required.
 Added SQLAlchemy async runtime internally for STMGR service while keeping TaskDB sync for current clients.

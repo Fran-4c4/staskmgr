@@ -30,6 +30,17 @@ pip install git+https://github.com/Fran-4c4/staskmgr
 
 See [Upgrade guide](./docs/upgrade_1_6.md).
 
+## Task log correlation
+Version 1.6.1 adds best-effort task correlation metadata for external
+containers. `TASK_ID` remains the minimum identity needed to execute a concrete
+task; optional fields such as `PARENT_REQUEST_ID`, `PROCESS_CHAIN_ID`,
+`TASK_TYPE`, `TASK_MANAGER`, `SERVICE_NAME` and `DEPLOYMENT_ENVIRONMENT` are
+propagated when available.
+
+Docker launches receive environment variables and labels. ECS launches receive
+container environment overrides and task tags. Missing optional metadata does
+not break legacy task definitions.
+
 ## Usage and requirements
 - First you need to configure the minimum parameters in order to run tasks. See  [Configuration](./docs/configuration.md)
 - Second you need a database to store configuration and task management. See table creation in folder `config/ddbb_script.sql` or [Configuration scripts](./docs/configuration_sql.md). Actually only PostgreSQL is supported.

@@ -4,6 +4,7 @@ import inspect
 import logging
 import os
 import sys
+from tmgr.log_handlers.task_context import TaskLogContext
 
 class TaskLoader:
     """Class to load modules dinamically
@@ -69,6 +70,9 @@ class TaskLoader:
         if task_ret is not None:
             return task_ret
 
+        context_token = TaskLogContext.set_from_task(
+            task_definition=self.config.get("task_definition", None)
+        )
         try:
             task_params = {"task_definition": self.config.get("task_definition", None)}
             task_ret = task_instance.run_task(**task_params)
@@ -81,6 +85,8 @@ class TaskLoader:
                 "message": msg,
                 "error_type": "RuntimeError",
             }
+        finally:
+            TaskLogContext.reset_context(context_token)
 
         return task_ret
 
@@ -154,9 +160,18 @@ class TaskLoader:
             }
 
         try:
+            context_token = TaskLogContext.set_from_task(
+                task_definition=self.config.get("task_definition", None)
+            )
             if inspect.iscoroutinefunction(method):
-                return await method(**kwargs)
-            return await asyncio.to_thread(method, **kwargs)
+                try:
+                    return await method(**kwargs)
+                finally:
+                    TaskLogContext.reset_context(context_token)
+            try:
+                return await asyncio.to_thread(method, **kwargs)
+            finally:
+                TaskLogContext.reset_context(context_token)
         except Exception as e:
             msg = f"Error {error_context} in class '{self.class_name}': {str(e)}"
             return {

@@ -7,7 +7,7 @@ Use Python 3.10 or newer.
 
 ## Upgrade
 1. Apply `config/ddbb_upgrade_1_6.sql` in PostgreSQL.
-2. Rebuild the image with STMGR 1.6.0.
+2. Rebuild the image with STMGR 1.6.1 or newer.
 3. Start with `compatibility_mode=AUTO`.
 4. Switch to `SAFE` after validation.
 
