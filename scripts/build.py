@@ -3,6 +3,8 @@ import subprocess
 import os
 import sys
 import argparse
+import importlib.util
+from pathlib import Path
 
 # Obtener la ruta al directorio raíz del proyecto
 root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
@@ -48,12 +50,39 @@ def build():
     setup_path = os.path.join(root_dir, 'setup.py')   
 
     print(f"setup_path: {setup_path}")
-    subprocess.run([sys.executable, setup_path, "sdist", "bdist_wheel"])
+    subprocess.run([sys.executable, setup_path, "sdist", "bdist_wheel"], check=True)
     print("Package build")
 
 
+def get_dist_files():
+    """Return built distribution artifacts ready for twine upload."""
+
+    dist_dir = Path(root_dir) / "dist"
+    dist_files = sorted(
+        path for path in dist_dir.iterdir()
+        if path.is_file() and path.suffix in {".whl", ".gz", ".zip"}
+    )
+    if not dist_files:
+        raise RuntimeError("No distribution files found in dist/. Build the package first.")
+    return [str(path) for path in dist_files]
+
+
 def upload_to_pypi():
-    subprocess.run(['twine', 'upload', 'dist/*', '--verbose'])
+    if importlib.util.find_spec("twine") is None:
+        raise RuntimeError(
+            "twine is not installed. Run: "
+            f"{sys.executable} -m pip install -r requirements-dev.txt"
+        )
+    dist_files = get_dist_files()
+    try:
+        subprocess.run(
+            [sys.executable, "-m", "twine", "upload", *dist_files, "--verbose"],
+            check=True,
+        )
+    except subprocess.CalledProcessError as ex:
+        if ex.returncode == 1:
+            print("Upload failed. Check PyPI credentials, package version, and twine output above.")
+        raise
     print("Package uploaded")
 
 def ask():
