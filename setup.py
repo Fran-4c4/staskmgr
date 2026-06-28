@@ -106,6 +106,9 @@ def packages_to_exclude():
 meta = parse_dist_meta()
 # print("Meta data")
 # print(meta)
+setup_kwargs = {}
+if "@" in meta.get("contact", ""):
+    setup_kwargs["author_email"] = meta["contact"]
 
 ''' 
 update references
@@ -128,7 +131,6 @@ setup(
     long_description=long_description(),
     long_description_content_type='text/markdown',
     author=meta['author'],
-    author_email=meta['contact'],
     url=meta['homepage'],
     project_urls={
         "Bug Tracker": meta['bug_tracker'],
@@ -145,5 +147,6 @@ setup(
         "Topic :: System :: Distributed Computing",
         "Operating System :: OS Independent"
     ],
-    python_requires='>=3.10'
+    python_requires='>=3.10',
+    **setup_kwargs,
 )
